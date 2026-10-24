@@ -1,0 +1,6 @@
+{
+  "backend": "tensorflow",
+  "validation_accuracy": 0.889,
+  "training_data": "synthetic (rule-generated with noise)",
+  "samples": 5000
+}
