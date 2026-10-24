@@ -145,11 +145,13 @@ def api_tutor():
     assessment = state.get('assessment') or []
     if not raw_question:
         return jsonify({'ok': False, 'error': 'Ask a question first.'}), 400
-    if not profile.get('topics'):
-        return jsonify({'ok': False, 'error': 'Start with your syllabus first so the tutor can answer according to your topics.'}), 400
-    profile.setdefault('activity', {'quiz_attempts': 0, 'completed_actions': 0, 'tutor_questions': 0})
-    profile['activity']['tutor_questions'] = int(profile['activity'].get('tutor_questions', 0)) + 1
-    state['profile'] = profile
+    if profile.get('topics'):
+        profile.setdefault('activity', {'quiz_attempts': 0, 'completed_actions': 0, 'tutor_questions': 0})
+        profile['activity']['tutor_questions'] = int(profile['activity'].get('tutor_questions', 0)) + 1
+        state['profile'] = profile
+    else:
+        # No study plan yet: answer from a few general topics, and do not save a plan
+        profile = {'topics': ['python', 'classification', 'neural networks'], 'level': 'beginner'}
     reply = generate_tutor_reply(raw_question, profile, assessment)
     return jsonify({
         'ok': True,
