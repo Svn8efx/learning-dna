@@ -91,3 +91,64 @@ def test_students_are_isolated(client):
     start_plan(client)
     other = client.application.test_client()
     assert other.get("/api/context").get_json()["profile"] is None
+
+
+def test_tutor_answers_without_a_plan_and_does_not_create_one(client):
+    r = client.post("/api/tutor", json={"question": "What is classification?"})
+    assert r.status_code == 200 and r.get_json()["answer"]
+    assert client.post("/api/tutor", json={"question": "hi"}).status_code == 200
+    assert client.get("/api/context").get_json()["profile"] is None
+
+
+# ---- guided tutor (pre-written answers) ----
+def ask(client, **body):
+    return client.post("/api/tutor", json=body)
+
+
+def test_tutor_question_list(client):
+    data = client.get("/api/tutor/questions").get_json()
+    assert data["ok"] and len(data["general"]) >= 6 and "classification" in data["topics"]
+
+
+def test_every_button_question_has_an_answer(client):
+    start_plan(client)
+    client.post("/api/quiz", json={"answers": {}})
+    ids = [q["id"] for q in client.get("/api/tutor/questions").get_json()["general"]]
+    ids += ["explain:neural networks", "before:neural networks", "practice:clustering", "compare:classification|clustering"]
+    for qid in ids:
+        r = ask(client, question_id=qid)
+        assert r.status_code == 200 and len(r.get_json()["answer"]) > 40, qid
+
+
+def test_different_questions_give_different_answers(client):
+    answers = {ask(client, question=q).get_json()["answer"] for q in [
+        "explain neural networks", "what is clustering", "what do I need before transformers",
+        "give me a project for nlp", "classification vs clustering", "how do I change the text size"]}
+    assert len(answers) == 6
+
+
+def test_typed_matching_and_word_boundaries(client):
+    assert "Neural Networks" in ask(client, question="Explain neural networks in simple words").get_json()["answer"]
+    assert "Before" in ask(client, question="what should I know before transformers").get_json()["answer"]
+    # 'explain' contains 'ai' and 'plain' contains 'lan': these must not be read as topics
+    assert ask(client, question="please explain plainly").get_json()["suggestions"]
+
+
+def test_greeting_and_unknown_questions_are_honest(client):
+    hi = ask(client, question="hi").get_json()
+    assert "Hello" in hi["answer"] and hi["suggestions"]
+    odd = ask(client, question="who won the cricket match yesterday").get_json()
+    assert "not a live AI" in odd["answer"] and odd["suggestions"] and odd["mode"] == "Pre-written answers"
+
+
+def test_next_and_weakest_use_the_plan_and_quiz(client):
+    assert "do not have a study plan" in ask(client, question_id="next").get_json()["answer"]
+    assert "quiz results first" in ask(client, question_id="weakest").get_json()["answer"]
+    start_plan(client)
+    assert "Next up" in ask(client, question_id="next").get_json()["answer"]
+    client.post("/api/quiz", json={"answers": {}})
+    assert "weakest topic" in ask(client, question_id="weakest").get_json()["answer"]
+
+
+def test_tutor_needs_a_question(client):
+    assert ask(client).status_code == 400

@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from learning_dna.accessibility import clean_preferences, is_personalised
 from learning_dna.learning import *  # noqa: F401,F403
 from learning_dna.learning import _dashboard_payload, _default_path_progress
+from learning_dna import tutor_faq
 from learning_dna.monitoring import record_event
 from learning_dna.services.llm_tutor_service import generate_tutor_reply
 from learning_dna.store import state, store
@@ -137,29 +138,54 @@ def api_notifications():
     return jsonify({'ok': True, 'notifications': payload.get('notifications', [])})
 
 
+@bp.route('/api/tutor/questions')
+def api_tutor_questions():
+    """Questions the guided tutor can answer (general ones, plus a topic list)."""
+    return jsonify({'ok': True, **tutor_faq.quick_questions(state.get('profile') or {})})
+
+
 @bp.route('/api/tutor', methods=['POST'])
 def api_tutor():
+    """Guided tutor. Send {question_id} for a button question or {question} for typed text.
+
+    Answers are pre-written (see tutor_faq.py). A live AI model is used only for typed questions that
+    match nothing AND only if OPENAI_API_KEY is set on the server.
+    """
     data = request.get_json(silent=True) or {}
-    raw_question = (data.get('question') or '').strip()
+    question_id = str(data.get('question_id') or '').strip()
+    raw_question = str(data.get('question') or '').strip()
     profile = state.get('profile') or {}
     assessment = state.get('assessment') or []
-    if not raw_question:
-        return jsonify({'ok': False, 'error': 'Ask a question first.'}), 400
+    if not question_id and not raw_question:
+        return jsonify({'ok': False, 'error': 'Choose a question or type one first.'}), 400
+
     if profile.get('topics'):
         profile.setdefault('activity', {'quiz_attempts': 0, 'completed_actions': 0, 'tutor_questions': 0})
         profile['activity']['tutor_questions'] = int(profile['activity'].get('tutor_questions', 0)) + 1
         state['profile'] = profile
-    else:
-        # No study plan yet: answer from a few general topics, and do not save a plan
-        profile = {'topics': ['python', 'classification', 'neural networks'], 'level': 'beginner'}
-    reply = generate_tutor_reply(raw_question, profile, assessment)
+
+    result = tutor_faq.answer_by_id(question_id, profile, assessment) if question_id else None
+    if result is None and raw_question:
+        result = tutor_faq.answer_typed(raw_question, profile, assessment)
+    mode = 'Pre-written answers'
+
+    if result is None and raw_question and os.environ.get('OPENAI_API_KEY'):
+        reply = generate_tutor_reply(raw_question, profile if profile.get('topics') else {'topics': ['python']}, assessment)
+        result = {'answer': reply.answer, 'topic': reply.detected_topic}
+        mode = 'AI model (OpenAI)'
+    if result is None:
+        result = tutor_faq.not_understood(profile)
+    elif result.get('greeting'):
+        result['suggestions'] = tutor_faq.suggestions(profile)
+
+    topic = result.get('topic')
     return jsonify({
         'ok': True,
-        'answer': reply.answer,
-        'topic': reply.detected_topic,
-        'mode': reply.mode,
-        'retrieved': reply.retrieved_chunks,
-        'related_resources': reply.related_resources,
+        'answer': result['answer'],
+        'topic': topic,
+        'mode': mode,
+        'suggestions': result.get('suggestions', []),
+        'related_resources': tutor_faq._related(topic) if topic else {},
     })
 
 

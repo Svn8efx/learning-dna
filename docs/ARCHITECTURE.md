@@ -27,6 +27,7 @@ learning_dna/
   learning.py               topic parsing, learning order, quiz generation, scoring, recommendations
   accessibility.py          default preferences, validation, intake-to-settings rules
   content.py / content_data.py   plain-language lesson text for all 30 topics
+  tutor_faq.py              guided tutor: pre-written answers, keyword matching, plan-aware answers
   monitoring.py             event recording and progress summaries
   ml/need_model.py          TensorFlow learning-need classifier (+ scikit-learn fallback)
   routes/                   core, path, profiling, accessibility, monitoring blueprints

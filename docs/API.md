@@ -13,7 +13,8 @@ the session cookie identifies the student. Errors look like `{"ok": false, "erro
 | POST | `/api/reset` | Start a new plan. Accessibility settings and history are kept |
 | GET | `/api/search?q=` | Search courses/videos/datasets in the plan |
 | GET | `/api/notifications`, `/api/features` | Notifications; feature list |
-| POST | `/api/tutor` | Body `{question}`; tutor answer (local retrieval, or OpenAI if a key is set) |
+| GET | `/api/tutor/questions` | Questions the guided tutor offers: `general[]`, `topics[]`, `plan_topics[]` |
+| POST | `/api/tutor` | Body `{question_id}` (button) or `{question}` (typed). Answers are pre-written (`tutor_faq.py`), built from lessons and the student's plan and quiz results. Unmatched typed questions get a polite "not understood" reply with suggestions; only if `OPENAI_API_KEY` is set are they sent to an AI model. Response: `{answer, topic, mode, suggestions[], related_resources}` |
 
 ## Learning path (inherited)
 `POST /api/path/update`, `POST /api/path/step/update`, `GET /api/path/resources?topic=`,

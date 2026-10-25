@@ -50,8 +50,8 @@ falls back to an in-memory store so a demo still works (data is lost on restart;
 **Tests.**
 
 ```bash
-python -m pytest tests -q                    # backend: 16 tests
-cd frontend && CI=true npm test -- --watchAll=false   # frontend: 5 tests
+python -m pytest tests -q                    # backend: 16 tests, each run on two stores
+cd frontend && CI=true npm test -- --watchAll=false   # frontend: 6 tests
 ```
 
 ## Documentation

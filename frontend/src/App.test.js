@@ -80,3 +80,18 @@ test('Lesson page renders lesson text', async () => {
   expect(c.querySelector('h1').textContent).toBe('Python');
   expect(c.textContent).toMatch(/Intro text/);
 });
+
+test('Tutor page offers quick questions and a live conversation log', async () => {
+  global.fetch = jest.fn((url) => {
+    let body = { ok: true };
+    if (url.includes('/api/tutor/questions')) body = { ok: true, general: [{ id: 'next', text: 'What should I learn next?' }], topics: ['python'], plan_topics: [] };
+    if (url.includes('/api/accessibility/preferences')) body = { ok: true, preferences: {} };
+    return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(body)) });
+  });
+  const TutorPage = require('./pages/TutorPage').default;
+  const c = await mount(<AccessibilityProvider><MemoryRouter><TutorPage /></MemoryRouter></AccessibilityProvider>);
+  expect(c.textContent).toMatch(/What should I learn next\?/);
+  expect(c.querySelector('[role="log"]')).not.toBeNull();
+  expect(c.querySelector('label[for="tutor-input"]')).not.toBeNull();
+  expect(c.textContent).toMatch(/not a live AI/);
+});

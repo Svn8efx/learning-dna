@@ -6,7 +6,7 @@ const FEATURES = [
   { icon: Brain, title: 'Adaptive Assessment', desc: 'Quizzes that measure your knowledge level topic by topic and adjust to you.', color: 'cyan' },
   { icon: TrendingUp, title: 'Progress Analytics', desc: 'Visual heatmaps and accuracy trends to track your learning journey.', color: 'purple' },
   { icon: Map, title: 'Personal Learning Path', desc: 'A topic map with prerequisites, so you always know what to study next.', color: 'green' },
-  { icon: MessageSquare, title: 'AI Tutor Chat', desc: 'Ask doubts about AI/ML topics, get simple explanations, project ideas, and personalized guidance.', color: 'pink' },
+  { icon: MessageSquare, title: 'Guided Tutor', desc: 'Pick a question or type a topic to get simple explanations, project ideas, and guidance based on your own plan and quiz results.', color: 'pink' },
   { icon: BookOpen, title: 'Curated Resources', desc: 'YouTube videos, verified courses, Kaggle datasets, and mini projects.', color: 'orange' },
   { icon: Award, title: 'Certificate Paths', desc: 'Structured programs for placements, projects, and deep learning goals.', color: 'cyan' },
 ];

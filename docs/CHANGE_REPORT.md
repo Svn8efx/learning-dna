@@ -27,7 +27,8 @@ Problems found in the original:
 **Module 3 - accessible multimedia.** Lessons with text-to-speech and transcripts, captions in the video player, preference storage, full accessibility panel.
 **Module 4 - monitoring.** Event tracking, engagement and accessibility-usage summary, quiz trend with table, and a with/without-personalisation comparison.
 **Accessibility layer.** Skip link, landmarks, live announcements, focus management, high contrast, text scaling, large targets, keyboard shortcuts, voice commands, reduced motion.
-**Tests.** 16 backend tests (run against the in-memory store and a MongoDB-compatible mock) and 5 frontend render tests.
+**Guided tutor.** The inherited tutor gave the same note for most questions. It was replaced with a guided tutor: quick-question buttons, a topic picker, and keyword matching for typed text. Answers are pre-written from the lesson text and personalised only through the student's own plan and quiz results. It says plainly when it does not understand and is labelled as not a live AI.
+**Tests.** 32 backend test runs (16 tests, each run against the in-memory store and a MongoDB-compatible mock) and 6 frontend render tests.
 
 ## 4. The TensorFlow model - read before presenting
 - 8 inputs → Dense(16) → Dense(8) → Softmax(4). Output: a suggested *presentation style*, not a diagnosis.
