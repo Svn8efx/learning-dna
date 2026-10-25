@@ -78,6 +78,13 @@ class MemoryStore:
         with self._lock:
             return [copy.deepcopy(e) for e in self._events if e["student_id"] == sid][-limit:]
 
+    def find_student_id_by_code(self, code):
+        with self._lock:
+            for sid, doc in self._students.items():
+                if doc.get("resume_code") == code:
+                    return sid
+        return None
+
     def get_content(self, topic):
         with self._lock:
             return copy.deepcopy(self._content.get(topic))
@@ -97,6 +104,7 @@ class MongoStore:
         self.client.admin.command("ping")          # fail fast if the server is not reachable
         self.db = self.client[db_name]
         self.db.students.create_index("student_id", unique=True)
+        self.db.students.create_index("resume_code")
         self.db.quiz_results.create_index([("student_id", ASCENDING), ("ts", ASCENDING)])
         self.db.events.create_index([("student_id", ASCENDING), ("ts", ASCENDING)])
         self.db.content.create_index("topic", unique=True)
@@ -124,6 +132,10 @@ class MongoStore:
     def list_events(self, sid, limit=2000):
         cursor = self.db.events.find({"student_id": sid}, {"_id": 0}).sort("ts", -1).limit(limit)
         return [_decode(d) for d in reversed(list(cursor))]
+
+    def find_student_id_by_code(self, code):
+        doc = self.db.students.find_one({"resume_code": code}, {"_id": 0, "student_id": 1})
+        return doc["student_id"] if doc else None
 
     def get_content(self, topic):
         doc = self.db.content.find_one({"topic": topic}, {"_id": 0})

@@ -69,6 +69,9 @@ export default function HomePage() {
               View Dashboard
             </Link>
           </div>
+          <p className="text-slate-300 text-sm mt-5">
+            Already started on another device? <Link to="/my-code" className="text-teal-300 underline">Continue with your code</Link>.
+          </p>
 
           {/* Stats row */}
           <div className="flex flex-wrap gap-6 mt-10 pt-8 border-t border-white/10">

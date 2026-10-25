@@ -152,3 +152,78 @@ def test_next_and_weakest_use_the_plan_and_quiz(client):
 
 def test_tutor_needs_a_question(client):
     assert ask(client).status_code == 400
+
+
+# ---- resume codes -------------------------------------------------------------------------
+
+import re  # noqa: E402
+
+from learning_dna import resume_code  # noqa: E402
+from learning_dna.routes import account as account_routes  # noqa: E402
+from learning_dna.wordlist import WORDS  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def fresh_limiter():
+    account_routes.limiter = resume_code.AttemptLimiter()
+
+
+def test_code_format_and_stability(client):
+    first = client.get("/api/account/code").get_json()
+    assert first["ok"] and re.fullmatch(r"[a-z]+-[a-z]+-[a-z]+-\d{2}", first["code"])
+    assert client.get("/api/account/code").get_json()["code"] == first["code"]
+
+
+def test_resume_on_another_device_loads_the_same_progress(client):
+    start_plan(client)
+    code = client.get("/api/account/code").get_json()["code"]
+    other = client.application.test_client()           # a different browser: no cookie yet
+    assert not other.get("/api/context").get_json().get("profile")
+    spoken = code.replace("-", " ").upper() + "."      # as typed or spoken
+    r = other.post("/api/account/resume", json={"code": spoken})
+    assert r.status_code == 200 and r.get_json()["ok"]
+    ctx = other.get("/api/context").get_json()
+    assert ctx["profile"]["topics"]
+    assert other.get("/api/account/code").get_json()["code"] == code
+
+
+def test_wrong_and_malformed_codes(client):
+    assert client.post("/api/account/resume", json={"code": "hello"}).status_code == 400
+    r = client.post("/api/account/resume", json={"code": "maple-river-tiger-42"})
+    assert r.status_code == 404 and not r.get_json()["ok"]
+
+
+def test_too_many_wrong_guesses_are_blocked(client):
+    for _ in range(10):
+        assert client.post("/api/account/resume", json={"code": "maple-river-tiger-42"}).status_code == 404
+    assert client.post("/api/account/resume", json={"code": "maple-river-tiger-42"}).status_code == 429
+
+
+def test_logout_forgets_the_browser_but_keeps_the_data(client):
+    start_plan(client)
+    code = client.get("/api/account/code").get_json()["code"]
+    assert client.post("/api/account/logout").get_json()["ok"]
+    assert not client.get("/api/context").get_json().get("profile")
+    assert client.get("/api/account/code").get_json()["code"] != code          # a brand-new profile
+    assert client.post("/api/account/resume", json={"code": code}).status_code == 200
+    assert client.get("/api/context").get_json()["profile"]["topics"]
+
+
+def test_code_helpers():
+    assert len(WORDS) >= 250 and len(set(WORDS)) == len(WORDS)
+    assert all(w.isalpha() and w.islower() for w in WORDS)
+    codes = {resume_code.generate_code() for _ in range(200)}
+    assert len(codes) > 190
+    for c in codes:
+        words = c.split("-")[:3]
+        assert len(set(words)) == 3 and resume_code.is_valid_format(c)
+    assert resume_code.normalize_code("Maple, River  Tiger 42!") == "maple-river-tiger-42"
+
+
+def test_limiter_forgets_old_failures():
+    now = [0.0]
+    lim = resume_code.AttemptLimiter(per_key=2, per_key_window=10, total=100, clock=lambda: now[0])
+    lim.record_failure("a"); lim.record_failure("a")
+    assert lim.blocked("a") and not lim.blocked("b")
+    now[0] = 11.0
+    assert not lim.blocked("a")

@@ -13,6 +13,7 @@ import MyDnaPage from './pages/MyDnaPage';
 import LessonsPage from './pages/LessonsPage';
 import LessonPage from './pages/LessonPage';
 import ProgressPage from './pages/ProgressPage';
+import MyCodePage from './pages/MyCodePage';
 import { AccessibilityProvider } from './context/AccessibilityContext';
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="lessons" element={<LessonsPage />} />
             <Route path="lesson/:topic" element={<LessonPage />} />
             <Route path="progress" element={<ProgressPage />} />
+            <Route path="my-code" element={<MyCodePage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

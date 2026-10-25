@@ -8,7 +8,7 @@ from learning_dna import config
 
 
 def create_app(store_backend=None, mongo_uri=None, mongo_db=None) -> Flask:
-    from learning_dna.routes import accessibility, core, monitoring, path, profiling
+    from learning_dna.routes import accessibility, account, core, monitoring, path, profiling
     from learning_dna.store import init_store
 
     app = Flask(__name__)
@@ -17,7 +17,7 @@ def create_app(store_backend=None, mongo_uri=None, mongo_db=None) -> Flask:
     app.config.update(SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_HTTPONLY=True)
     init_store(store_backend, mongo_uri, mongo_db)
 
-    for module in (core, path, profiling, accessibility, monitoring):
+    for module in (core, path, profiling, accessibility, monitoring, account):
         app.register_blueprint(module.bp)
 
     @app.after_request

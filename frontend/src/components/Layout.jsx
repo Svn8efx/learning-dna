@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Dna, Search, Bell, RotateCcw, Accessibility, Volume2 } from 'lucide-react';
+import { Dna, Search, Bell, RotateCcw, Accessibility, Volume2, KeyRound } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import AccessibilityPanel from './AccessibilityPanel';
+import LogoutButton from './LogoutButton';
 
 const NAV = [
   ['/goals', 'Goals'], ['/start', 'Start'], ['/quiz', 'Quiz'], ['/dashboard', 'Dashboard'],
@@ -15,7 +16,7 @@ const NAV = [
 const PAGE_TITLES = {
   '/': 'Home', '/goals': 'Goals', '/start': 'Start', '/quiz': 'Quiz', '/dashboard': 'Dashboard',
   '/path': 'Learning path', '/lessons': 'Lessons', '/resources': 'Resources', '/tutor': 'Tutor',
-  '/my-dna': 'My Learning DNA', '/progress': 'Progress',
+  '/my-dna': 'My Learning DNA', '/progress': 'Progress', '/my-code': 'My code',
 };
 
 const SHORTCUT_TARGETS = {
@@ -138,7 +139,7 @@ export default function Layout() {
           <nav aria-label="Main" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm order-3 md:order-none w-full md:w-auto">
             {NAV.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
           </nav>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <form onSubmit={runSearch} role="search" className="hidden md:flex items-center gap-2">
               <label htmlFor="site-search" className="sr-only">Search resources</label>
               <input id="site-search" className="cyber-input" style={{ minWidth: 200 }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search resources" />
@@ -152,6 +153,8 @@ export default function Layout() {
             <button ref={settingsButtonRef} type="button" className="btn-cyber flex items-center gap-1" onClick={() => setPanelOpen(true)} aria-haspopup="dialog">
               <Accessibility size={14} /> Accessibility
             </button>
+            <Link to="/my-code" className="btn-cyber flex items-center gap-1"><KeyRound size={14} aria-hidden="true" /> My code</Link>
+            <LogoutButton />
             <button type="button" className="btn-cyber" aria-label="Notifications" aria-expanded={showNotifications} onClick={() => setShowNotifications(s => !s)}><Bell size={14} /></button>
             <button type="button" className="btn-cyber" aria-label="Start a new study plan" onClick={resetAll}><RotateCcw size={14} /></button>
           </div>

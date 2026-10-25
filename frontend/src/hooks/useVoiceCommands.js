@@ -14,6 +14,7 @@ export const PAGE_WORDS = {
   lessons: '/lessons', lesson: '/lessons',
   profile: '/my-dna', 'my profile': '/my-dna', 'my dna': '/my-dna', 'my d n a': '/my-dna',
   progress: '/progress',
+  'my code': '/my-code', code: '/my-code',
 };
 
 export const HELP_TEXT = 'You can say: go to quiz, scroll down, scroll up, scroll to top, click and then a button name, go back, read this page, stop, bigger text, smaller text, normal text, high contrast on, high contrast off, open settings, close settings, or stop listening.';

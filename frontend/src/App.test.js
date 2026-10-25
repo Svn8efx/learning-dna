@@ -95,3 +95,17 @@ test('Tutor page offers quick questions and a live conversation log', async () =
   expect(c.querySelector('label[for="tutor-input"]')).not.toBeNull();
   expect(c.textContent).toMatch(/not a live AI/);
 });
+
+test('My code page shows the code and a labelled form to continue with a code', async () => {
+  global.fetch = jest.fn((url) => {
+    let body = { ok: true };
+    if (url.includes('/api/account/code')) body = { ok: true, code: 'maple-river-tiger-42' };
+    if (url.includes('/api/accessibility/preferences')) body = { ok: true, preferences: {} };
+    return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(body)) });
+  });
+  const MyCodePage = require('./pages/MyCodePage').default;
+  const c = await mount(<AccessibilityProvider><MemoryRouter><MyCodePage /></MemoryRouter></AccessibilityProvider>);
+  expect(c.querySelector('[data-testid="resume-code"]').textContent).toBe('maple-river-tiger-42');
+  expect(c.querySelector('label[for="code-input"]')).not.toBeNull();
+  expect(Array.from(c.querySelectorAll('button')).some((b) => /log out/i.test(b.textContent))).toBe(true);
+});

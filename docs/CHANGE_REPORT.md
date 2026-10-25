@@ -41,11 +41,12 @@ Problems found in the original:
 
 | Item | Status |
 |---|---|
-| Backend tests | 16 pass |
-| Frontend build and render tests | Build succeeds; 5 tests pass |
+| Backend tests | 44 test runs pass (memory store and mongomock), including resume codes |
+| Frontend build and render tests | Build succeeds; 14 tests pass (render tests and voice-command matching) |
 | React 17 | Installed version 17.0.2 |
 | TensorFlow | 2.21 tested; scikit-learn fallback also tested |
 | MongoDB | Tested with a MongoDB-compatible mock (mongomock) and the memory store. **Not tested against a live MongoDB server** in our build environment. Do this once: start MongoDB, run the app, confirm `/api/status` shows `"storage": "mongodb"` and `db.students.find()` has a document |
+| Automated accessibility audit | Google PageSpeed Insights (Lighthouse), 25 Oct 2026: Accessibility 100 and Best Practices 100 on the home, My DNA, Lessons and Progress pages, on mobile and desktop. This is an automated check, not a full audit |
 | Screen readers (JAWS/NVDA), real browsers | **Not tested** here. See the checklist in `docs/ACCESSIBILITY.md` |
 
 ## 6. Suggested community-service pilot
@@ -54,6 +55,12 @@ Problems found in the original:
 3. Record: tasks completed, settings used, problems, and a short satisfaction rating (see the Progress page for usage data).
 4. Report what changed because of the feedback. Do not store names; keep any real data anonymous.
 
-## 7. Future work
+## 7. Saving progress: resume codes
+Students do not need an account. Each profile has a resume code (three words and a two-digit number, e.g. `maple-river-tiger-42`) that can be
+copied, read aloud or downloaded. Typing it on another device loads the same progress; "Log out" makes a shared computer forget the student.
+Wrong guesses are rate limited. **Limitation:** anyone who knows a code can open that profile and it cannot be reset, so this suits a learning
+demo, not sensitive personal data. Proper accounts (hashed passwords, email recovery) are future work.
+
+## 8. Future work
 Real captions/audio description authoring, Hindi and other languages, cognitive-accessibility features, sign-language content,
 teacher dashboard, retraining the classifier on pilot data, production deployment (HTTPS, WSGI server, hosted MongoDB).

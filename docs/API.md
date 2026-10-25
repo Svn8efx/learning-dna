@@ -16,6 +16,16 @@ the session cookie identifies the student. Errors look like `{"ok": false, "erro
 | GET | `/api/tutor/questions` | Questions the guided tutor offers: `general[]`, `topics[]`, `plan_topics[]` |
 | POST | `/api/tutor` | Body `{question_id}` (button) or `{question}` (typed). Answers are pre-written (`tutor_faq.py`), built from lessons and the student's plan and quiz results. Unmatched typed questions get a polite "not understood" reply with suggestions; only if `OPENAI_API_KEY` is set are they sent to an AI model. Response: `{answer, topic, mode, suggestions[], related_resources}` |
 
+## Resume codes (continue on another device, no password)
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/account/code` | Returns this student's code, e.g. `maple-river-tiger-42`; creates one the first time. `{ok, code}` |
+| POST | `/api/account/resume` | Body `{code}` (spaces, capitals and punctuation are tolerated). Switches this browser to the profile that owns the code. `404` if unknown, `400` if the format is wrong, `429` after too many wrong guesses (10 per 10 minutes per visitor, 60 per minute for the whole server) |
+| POST | `/api/account/logout` | Clears the session cookie so the browser forgets the student. The data stays in MongoDB under the code |
+
+A code is three different words from a 283-word list plus a two-digit number, about 31 bits. Anyone who knows it can open that profile,
+so it is a password that cannot be reset. It suits a learning demo, not sensitive personal data.
+
 ## Learning path (inherited)
 `POST /api/path/update`, `POST /api/path/step/update`, `GET /api/path/resources?topic=`,
 `POST /api/path/video/track`, `POST /api/path/course/track`, `GET /api/path/progress`.

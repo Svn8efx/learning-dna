@@ -1,0 +1,36 @@
+"""Easy words used to build resume codes (three words + a two-digit number).
+
+Short, common, lower-case words that are easy to read aloud, spell and type.
+"""
+WORDS = (
+    "tiger", "panda", "otter", "eagle", "zebra", "koala", "lion", "falcon", "rabbit", "turtle",
+    "dolphin", "monkey", "parrot", "penguin", "camel", "horse", "sheep", "goat", "fox", "wolf",
+    "bear", "deer", "owl", "crane", "heron", "swan", "duck", "goose", "frog", "gecko", "lizard",
+    "bee", "ant", "moth", "seal", "whale", "shark", "crab", "squid", "hawk", "raven", "robin",
+    "finch", "sparrow", "mouse", "hare", "mule", "bison", "moose", "lynx", "puma", "jaguar",
+    "cheetah", "giraffe", "rhino", "hippo", "llama", "alpaca", "beaver", "badger", "ferret",
+    "newt", "trout", "salmon", "carp", "maple", "river", "cloud", "forest", "meadow", "island",
+    "valley", "mountain", "desert", "ocean", "lake", "pond", "brook", "stone", "pebble", "sand",
+    "coral", "harbor", "cliff", "canyon", "hill", "ridge", "field", "garden", "orchard",
+    "grove", "bamboo", "cedar", "willow", "birch", "pine", "oak", "palm", "lotus", "tulip",
+    "daisy", "rose", "lily", "poppy", "clover", "fern", "moss", "ivy", "mint", "basil",
+    "ginger", "lemon", "mango", "apple", "peach", "plum", "cherry", "berry", "grape", "melon",
+    "olive", "honey", "sugar", "butter", "bread", "rice", "noodle", "cocoa", "breeze",
+    "thunder", "rainbow", "comet", "planet", "moon", "star", "dawn", "dusk", "sunrise",
+    "sunset", "aurora", "amber", "ivory", "golden", "silver", "violet", "indigo", "orange",
+    "purple", "pink", "brown", "white", "green", "blue", "red", "yellow", "lamp", "clock",
+    "bell", "drum", "flute", "piano", "guitar", "violin", "kite", "boat", "ship", "train",
+    "bridge", "tower", "castle", "window", "door", "key", "book", "pencil", "paper", "ruler",
+    "compass", "map", "globe", "ladder", "basket", "bottle", "candle", "mirror", "pillow",
+    "blanket", "button", "ribbon", "jacket", "scarf", "shoe", "hat", "glove", "bucket", "wheel",
+    "anchor", "sail", "rocket", "engine", "magnet", "crystal", "diamond", "pearl", "marble",
+    "feather", "shell", "tent", "cabin", "happy", "brave", "calm", "kind", "quick", "quiet",
+    "bright", "gentle", "clever", "friendly", "lucky", "proud", "smart", "steady", "strong",
+    "warm", "cool", "fresh", "tiny", "giant", "round", "smooth", "soft", "silent", "swift",
+    "bold", "merry", "jolly", "cheerful", "honest", "curious", "sunny", "windy", "rainy",
+    "misty", "frosty", "snowy", "stormy", "table", "chair", "spoon", "plate", "bowl", "cup",
+    "knife", "fork", "teapot", "kettle", "brush", "comb", "soap", "towel", "cotton", "wool",
+    "linen", "velvet", "leather", "copper", "iron", "steel", "bronze", "spring", "summer",
+    "autumn", "winter", "north", "south", "east", "west", "puzzle", "pattern", "circle",
+    "square", "triangle",
+)
