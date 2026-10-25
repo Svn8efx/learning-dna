@@ -21,7 +21,15 @@ export const SHORTCUTS = [
   ['Alt + Shift + A', 'Open accessibility settings'], ['Alt + Shift + R', 'Read the page aloud'],
 ];
 
-export default function AccessibilityPanel({ open, onClose, onReadPage, voiceListening }) {
+const VOICE_ERRORS = {
+  'not-allowed': 'Microphone access is blocked. Click the lock icon in the address bar, allow the microphone, then turn voice commands off and on again.',
+  'service-not-allowed': 'This browser blocks the speech service. Please open the site in Google Chrome or Microsoft Edge.',
+  network: 'The speech service could not be reached. Brave and some other browsers block it. Please open the site in Google Chrome or Microsoft Edge, and check your internet connection.',
+  'audio-capture': 'No microphone was found. Plug in or enable a microphone and try again.',
+  'language-not-supported': 'This browser does not support the speech language we use. Please try Google Chrome or Microsoft Edge.',
+};
+
+export default function AccessibilityPanel({ open, onClose, onReadPage, voiceListening, voiceError }) {
   const { prefs, updatePrefs, speaking, stopSpeaking, speechSupported } = useAccessibility();
   const dialogRef = useRef(null);
   const headingRef = useRef(null);
@@ -91,7 +99,10 @@ export default function AccessibilityPanel({ open, onClose, onReadPage, voiceLis
           {prefs.voice_commands && !voiceSupported && (
             <p role="alert" className="text-xs text-amber-300 mt-2">Voice commands need Chrome or Edge. Your browser does not support them.</p>
           )}
-          {prefs.voice_commands && voiceSupported && (
+          {prefs.voice_commands && voiceSupported && voiceError && (
+            <p role="alert" className="text-xs text-amber-300 mt-2">{VOICE_ERRORS[voiceError] || `Voice commands stopped (${voiceError}). Please try Google Chrome or Microsoft Edge.`}</p>
+          )}
+          {prefs.voice_commands && voiceSupported && !voiceError && (
             <p className="text-xs text-slate-300 mt-2 flex items-center gap-1">
               <Mic size={12} /> {voiceListening ? 'Listening. Try "go to quiz", "read page", "bigger text".' : 'Starting the microphone. Allow access if your browser asks.'}
             </p>

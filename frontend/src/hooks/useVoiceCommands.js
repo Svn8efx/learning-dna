@@ -15,6 +15,7 @@ export const PAGE_WORDS = {
  */
 export function useVoiceCommands(enabled, handlers, onHeard) {
   const [listening, setListening] = useState(false);
+  const [error, setError] = useState('');
   const handlersRef = useRef(handlers);
   handlersRef.current = handlers;
   const heardRef = useRef(onHeard);
@@ -22,6 +23,7 @@ export function useVoiceCommands(enabled, handlers, onHeard) {
 
   useEffect(() => {
     if (!enabled || !SpeechRecognition) return undefined;
+    setError('');
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = false;
@@ -44,16 +46,24 @@ export function useVoiceCommands(enabled, handlers, onHeard) {
       else matched = false;
       heardRef.current?.(phrase, matched);
     };
-    recognition.onstart = () => setListening(true);
+    recognition.onstart = () => { setListening(true); setError(''); };
     recognition.onend = () => {
       setListening(false);
       if (!stopped) { try { recognition.start(); } catch { /* already started */ } }
     };
-    recognition.onerror = () => {};
+    recognition.onerror = (event) => {
+      const code = event && event.error ? event.error : 'unknown';
+      // 'no-speech' and 'aborted' are normal; everything else means listening cannot work.
+      if (code === 'no-speech' || code === 'aborted') return;
+      setError(code);
+      if (['not-allowed', 'service-not-allowed', 'network', 'audio-capture', 'language-not-supported'].includes(code)) {
+        stopped = true; // do not keep retrying forever
+      }
+    };
     try { recognition.start(); } catch { /* ignore */ }
 
     return () => { stopped = true; recognition.abort(); setListening(false); };
   }, [enabled]);
 
-  return { listening, supported: voiceSupported };
+  return { listening, supported: voiceSupported, error };
 }

@@ -66,7 +66,7 @@ export default function Layout() {
     announce(`Text size ${next} percent`);
   }, [prefs.font_scale, updatePrefs, announce]);
 
-  const { listening } = useVoiceCommands(prefs.voice_commands, {
+  const { listening, error: voiceError } = useVoiceCommands(prefs.voice_commands, {
     navigate: (to) => { logEvent('voice_command', to); navigate(to); },
     readPage: () => { logEvent('voice_command', 'read'); readPage(); },
     stopReading: stopSpeaking,
@@ -156,7 +156,7 @@ export default function Layout() {
         )}
       </header>
 
-      <AccessibilityPanel open={panelOpen} onClose={closePanel} onReadPage={readPage} voiceListening={listening} />
+      <AccessibilityPanel open={panelOpen} onClose={closePanel} onReadPage={readPage} voiceListening={listening} voiceError={voiceError} />
 
       {showNotifications && (
         <div className="max-w-7xl mx-auto px-6 pt-4">
