@@ -24,12 +24,12 @@ export const SHORTCUTS = [
 const VOICE_ERRORS = {
   'not-allowed': 'Microphone access is blocked. Click the lock icon in the address bar, allow the microphone, then turn voice commands off and on again.',
   'service-not-allowed': 'This browser blocks the speech service. Please open the site in Google Chrome or Microsoft Edge.',
-  network: 'The speech service could not be reached. Brave and some other browsers block it. Please open the site in Google Chrome or Microsoft Edge, and check your internet connection.',
+  network: 'The speech service could not be reached. Check your internet connection. In Microsoft Edge, also make sure Windows Settings > Privacy & security > Speech > Online speech recognition is turned on. Brave blocks this service completely, so use Google Chrome or Edge.',
   'audio-capture': 'No microphone was found. Plug in or enable a microphone and try again.',
   'language-not-supported': 'This browser does not support the speech language we use. Please try Google Chrome or Microsoft Edge.',
 };
 
-export default function AccessibilityPanel({ open, onClose, onReadPage, voiceListening, voiceError }) {
+export default function AccessibilityPanel({ open, onClose, onReadPage, voiceListening, voiceError, onVoiceRetry }) {
   const { prefs, updatePrefs, speaking, stopSpeaking, speechSupported } = useAccessibility();
   const dialogRef = useRef(null);
   const headingRef = useRef(null);
@@ -101,6 +101,9 @@ export default function AccessibilityPanel({ open, onClose, onReadPage, voiceLis
           )}
           {prefs.voice_commands && voiceSupported && voiceError && (
             <p role="alert" className="text-xs text-amber-300 mt-2">{VOICE_ERRORS[voiceError] || `Voice commands stopped (${voiceError}). Please try Google Chrome or Microsoft Edge.`}</p>
+          )}
+          {prefs.voice_commands && voiceSupported && voiceError && onVoiceRetry && (
+            <button type="button" className="btn-cyber mt-2" onClick={onVoiceRetry}>Try voice commands again</button>
           )}
           {prefs.voice_commands && voiceSupported && !voiceError && (
             <p className="text-xs text-slate-300 mt-2 flex items-center gap-1">
