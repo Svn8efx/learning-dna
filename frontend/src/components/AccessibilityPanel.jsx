@@ -107,7 +107,7 @@ export default function AccessibilityPanel({ open, onClose, onReadPage, voiceLis
           )}
           {prefs.voice_commands && voiceSupported && !voiceError && (
             <p className="text-xs text-slate-300 mt-2 flex items-center gap-1">
-              <Mic size={12} /> {voiceListening ? 'Listening. Try "go to quiz", "read page", "bigger text".' : 'Starting the microphone. Allow access if your browser asks.'}
+              <Mic size={12} /> {voiceListening ? 'Listening. Try "go to quiz", "scroll down", "click" and a button name, "read page", or "help".' : 'Starting the microphone. Allow access if your browser asks.'}
             </p>
           )}
         </fieldset>

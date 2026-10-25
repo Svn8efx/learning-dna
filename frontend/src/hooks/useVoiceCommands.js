@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { clickByVoice } from '../utils/voiceClick';
+import { normalizePhrase } from '../utils/speechText';
 
 const SpeechRecognition = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 export const voiceSupported = Boolean(SpeechRecognition);
@@ -14,42 +16,81 @@ export const PAGE_WORDS = {
   progress: '/progress',
 };
 
-/** Lower-case, drop punctuation (Edge adds full stops) and squash spaces. */
-export function normalizePhrase(raw) {
-  return String(raw || '')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+export const HELP_TEXT = 'You can say: go to quiz, scroll down, scroll up, scroll to top, click and then a button name, go back, read this page, stop, bigger text, smaller text, normal text, high contrast on, high contrast off, open settings, close settings, or stop listening.';
+
+export { normalizePhrase };
+
+// Words that are not part of a page name. The speech service often mishears "go to" as "do", "go 2", "to".
+const LEADING = new Set(['please', 'go', 'goto', 'to', 'too', 'two', '2', 'do', 'open', 'show', 'me', 'take', 'navigate', 'visit', 'the', 'a', 'click', 'on', 'press', 'tap']);
+const TRAILING = new Set(['page', 'section', 'screen', 'button', 'link', 'tab']);
+
+/** Returns the route for a spoken page name, or undefined. Needs at least one "go to"-style word before it. */
+export function pageForPhrase(raw) {
+  const words = normalizePhrase(raw).split(' ').filter(Boolean);
+  let start = 0;
+  while (start < words.length && LEADING.has(words[start])) start += 1;
+  let end = words.length;
+  while (end > start && TRAILING.has(words[end - 1])) end -= 1;
+  if (start === 0 || start >= end) return undefined;
+  return PAGE_WORDS[words.slice(start, end).join(' ')];
 }
 
-const NAV = /^(?:please )?(?:go to|goto|open|show me|show|take me to|navigate to|visit)\s+(?:the )?(.+?)(?: page| section| screen)?$/;
+const CLICK = /^(?:please )?(?:click|press|tap|select|choose|hit|push)(?: on)?(?: the)? (.+?)(?: button| link| tab)?$/;
 
 /**
  * Turns what the browser heard into an action, or null if it is not a command.
- * Returns { action, to?, on? }.
+ * Returns { action, to?, on?, label?, fallbackTo? }.
  */
 export function parseVoiceCommand(raw) {
   const phrase = normalizePhrase(raw);
   if (!phrase) return null;
-  const nav = phrase.match(NAV);
-  if (nav && PAGE_WORDS[nav[1]] !== undefined) return { action: 'navigate', to: PAGE_WORDS[nav[1]] };
+
+  const click = phrase.match(CLICK);
+  if (click) return { action: 'click', label: click[1], fallbackTo: pageForPhrase(`go to ${click[1]}`) };
+
+  if (/^(?:scroll|go|jump|back) (?:to )?(?:the )?top(?: of (?:the )?page)?$|^top of (?:the )?page$|^back to top$/.test(phrase)) return { action: 'scrollTop' };
+  if (/^(?:scroll|go|jump) (?:to )?(?:the )?(?:bottom|end)(?: of (?:the )?page)?$|^bottom of (?:the )?page$/.test(phrase)) return { action: 'scrollBottom' };
+  if (/^(?:scroll|page) down\b/.test(phrase)) return { action: 'scrollDown' };
+  if (/^(?:scroll|page) up\b/.test(phrase)) return { action: 'scrollUp' };
+
+  if (/^(?:go )?back$|^previous page$/.test(phrase)) return { action: 'goBack' };
+  if (/^(?:go )?forward$|^next page$/.test(phrase)) return { action: 'goForward' };
+  if (/^(?:help|voice help|what can i say|show commands|list commands)$/.test(phrase)) return { action: 'help' };
+  if (/^close(?: the)?(?: accessibility)?(?: settings| panel| menu)?$/.test(phrase)) return { action: 'closeSettings' };
+  if (/^stop listening$|^turn off voice(?: commands)?$|^voice off$/.test(phrase)) return { action: 'stopListening' };
+
+  const to = pageForPhrase(phrase);
+  if (to !== undefined) return { action: 'navigate', to };
+
   if (/^(?:please )?read (?:the |this )?page|^read aloud|^read this/.test(phrase)) return { action: 'readPage' };
   if (/^stop(?: reading)?$/.test(phrase)) return { action: 'stopReading' };
   if (/(?:bigger|larger|increase) text/.test(phrase)) return { action: 'biggerText' };
   if (/(?:smaller|decrease) text/.test(phrase)) return { action: 'smallerText' };
+  if (/(?:normal|default|reset) text/.test(phrase)) return { action: 'normalText' };
   if (/high contrast on|turn on high contrast/.test(phrase)) return { action: 'contrast', on: true };
   if (/high contrast off|turn off high contrast/.test(phrase)) return { action: 'contrast', on: false };
   if (/accessibility|settings/.test(phrase)) return { action: 'openSettings' };
   return null;
 }
 
+function scrollPage(action) {
+  const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const behavior = reduce ? 'auto' : 'smooth';
+  const step = Math.round(window.innerHeight * 0.8);
+  if (action === 'scrollDown') window.scrollBy({ top: step, behavior });
+  else if (action === 'scrollUp') window.scrollBy({ top: -step, behavior });
+  else if (action === 'scrollTop') window.scrollTo({ top: 0, behavior });
+  else window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+}
+
 const FATAL_ERRORS = ['not-allowed', 'service-not-allowed', 'audio-capture', 'language-not-supported'];
-const MAX_NETWORK_FAILURES = 3;
+const MAX_FAILURES = 3;
 
 /**
  * Listens for short spoken commands (needs a browser with the Web Speech service: Chrome or Edge).
- * handlers: { navigate(path), readPage(), stopReading(), biggerText(), smallerText(), contrast(on), openSettings() }
+ * handlers: { navigate, goBack, goForward, readPage, stopReading, biggerText, smallerText, normalText,
+ *             contrast(on), openSettings, closeSettings, stopListening }
+ * onHeard(phrase, matched, message) is called after every phrase; message is set when there is something specific to show.
  * Returns { listening, supported, error, retry }.
  */
 export function useVoiceCommands(enabled, handlers, onHeard) {
@@ -74,30 +115,40 @@ export function useVoiceCommands(enabled, handlers, onHeard) {
     let failures = 0;
     let timer = null;
 
+    const run = (command) => {
+      const h = handlersRef.current;
+      switch (command.action) {
+        case 'click': {
+          const name = clickByVoice(command.label);
+          if (name) return { matched: true, message: `Clicked "${name}"` };
+          if (command.fallbackTo) { h.navigate(command.fallbackTo); return { matched: true }; }
+          return { matched: false, message: `Could not find a button called "${command.label}"` };
+        }
+        case 'scrollUp': case 'scrollDown': case 'scrollTop': case 'scrollBottom':
+          scrollPage(command.action); return { matched: true };
+        case 'navigate': h.navigate(command.to); return { matched: true };
+        case 'contrast': h.contrast(command.on); return { matched: true };
+        case 'help': return { matched: true, message: HELP_TEXT };
+        default:
+          if (typeof h[command.action] === 'function') { h[command.action](); return { matched: true }; }
+          return { matched: false };
+      }
+    };
+
     recognition.onresult = (event) => {
       failures = 0;
       const heard = event.results[event.results.length - 1][0].transcript.trim();
       const command = parseVoiceCommand(heard);
-      const h = handlersRef.current;
-      if (command) {
-        if (command.action === 'navigate') h.navigate(command.to);
-        else if (command.action === 'contrast') h.contrast(command.on);
-        else h[command.action]();
-      }
-      heardRef.current?.(heard.toLowerCase(), Boolean(command));
+      const result = command ? run(command) : { matched: false };
+      heardRef.current?.(heard.toLowerCase(), result.matched, result.message);
     };
     recognition.onstart = () => setListening(true);
     recognition.onerror = (event) => {
       const code = event && event.error ? event.error : 'unknown';
       if (code === 'no-speech' || code === 'aborted') return; // normal
       if (FATAL_ERRORS.includes(code)) { stopped = true; setError(code); return; }
-      if (code === 'network') {
-        failures += 1; // may be a short connection drop: retry quietly a few times first
-        if (failures >= MAX_NETWORK_FAILURES) { stopped = true; setError('network'); }
-        return;
-      }
-      failures += 1;
-      if (failures >= MAX_NETWORK_FAILURES) { stopped = true; setError(code); }
+      failures += 1; // e.g. a short network drop: retry quietly a few times before telling the user
+      if (failures >= MAX_FAILURES) { stopped = true; setError(code); }
     };
     recognition.onend = () => {
       setListening(false);

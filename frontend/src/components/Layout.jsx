@@ -68,14 +68,19 @@ export default function Layout() {
 
   const { listening, error: voiceError, retry: retryVoice } = useVoiceCommands(prefs.voice_commands, {
     navigate: (to) => { logEvent('voice_command', to); navigate(to); },
+    goBack: () => { logEvent('voice_command', 'back'); navigate(-1); },
+    goForward: () => { logEvent('voice_command', 'forward'); navigate(1); },
+    normalText: () => { logEvent('voice_command', 'normal'); updatePrefs({ font_scale: 100 }); announce('Text size 100 percent'); },
+    closeSettings: () => closePanel(),
+    stopListening: () => { announce('Voice commands off'); updatePrefs({ voice_commands: false }); },
     readPage: () => { logEvent('voice_command', 'read'); readPage(); },
     stopReading: stopSpeaking,
     biggerText: () => { logEvent('voice_command', 'bigger'); changeScale(20); },
     smallerText: () => { logEvent('voice_command', 'smaller'); changeScale(-20); },
     contrast: (on) => { logEvent('voice_command', 'contrast'); updatePrefs({ high_contrast: on }); },
     openSettings: () => setPanelOpen(true),
-  }, (phrase, matched) => {
-    setLastHeard(matched ? `Heard: "${phrase}"` : `Did not understand: "${phrase}"`);
+  }, (phrase, matched, message) => {
+    setLastHeard(message || (matched ? `Heard: "${phrase}"` : `Did not understand: "${phrase}"`));
   });
 
   // Keyboard shortcuts: Alt + Shift + letter
