@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { apiFetch } from '../utils/api';
+import LoadingScreen from '../components/LoadingScreen';
 
 const SETTING_NAMES = {
   high_contrast: 'High contrast', text_to_speech: 'Listen controls', captions: 'Video captions',
@@ -31,8 +32,17 @@ export default function ProgressPage() {
     return () => clearInterval(timer);
   }, [load]);
 
-  if (error) return <div className="max-w-5xl mx-auto px-6 py-10"><p role="alert" className="text-red-300">{error}</p></div>;
-  if (!summary) return <div className="max-w-5xl mx-auto px-6 py-10 text-slate-300" role="status">Loading progress...</div>;
+  if (error && !summary) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6 py-10">
+        <div className="text-center max-w-sm">
+          <p role="alert" className="text-red-300 mb-4">{error}</p>
+          <button type="button" className="btn-cyber" onClick={() => { setError(''); load(); }}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+  if (!summary) return <LoadingScreen label="Loading your progress" />;
 
   const { engagement, accessibility_usage: usage, quiz_trend: trend, progress, personalisation_effect: effect, insights } = summary;
   const activeSettings = Object.entries(usage.current_settings).filter(([k, v]) => SETTING_NAMES[k] && v).map(([k]) => SETTING_NAMES[k]);

@@ -1,4 +1,5 @@
 
+import LoadingScreen from '../components/LoadingScreen';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Brain, ChevronLeft, ChevronRight, CheckCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react';
@@ -67,7 +68,7 @@ export default function QuizPage() {
   };
 
   if (loading && !total) {
-    return <div className="px-6 py-8 max-w-2xl mx-auto text-slate-300">Loading quiz...</div>;
+    return <LoadingScreen label="Preparing your quiz" />;
   }
 
   if (!total) {

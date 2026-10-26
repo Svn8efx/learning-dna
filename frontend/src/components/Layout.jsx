@@ -128,7 +128,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen text-white">
+    <div className="min-h-screen flex flex-col text-white">
       <a href="#main-content" className="skip-link" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
         Skip to main content
       </a>
@@ -167,7 +167,7 @@ export default function Layout() {
       <AccessibilityPanel open={panelOpen} onClose={closePanel} onReadPage={readPage} voiceListening={listening} voiceError={voiceError} onVoiceRetry={retryVoice} />
 
       {showNotifications && (
-        <div className="max-w-7xl mx-auto px-6 pt-4">
+        <div className="w-full max-w-7xl mx-auto px-6 pt-4">
           <section aria-label="Notifications" className="glass-card p-4 space-y-2">
             <h2 className="font-display font-semibold text-white text-sm">Notifications</h2>
             {notifications.length ? notifications.map((n, i) => <div key={i} className="text-slate-300 text-sm"><span className="text-teal-400 font-medium">{n.title}:</span> {n.message}</div>) : <div className="text-slate-400 text-sm">No notifications yet.</div>}
@@ -176,7 +176,7 @@ export default function Layout() {
       )}
 
       {showSearch && (
-        <div className="max-w-7xl mx-auto px-6 pt-4">
+        <div className="w-full max-w-7xl mx-auto px-6 pt-4">
           <section aria-label="Search results" className="glass-card p-4 space-y-3">
             <h2 className="font-display font-semibold text-white text-sm">Search Results</h2>
             {results.length ? results.map((r, i) => (
@@ -190,9 +190,9 @@ export default function Layout() {
         </div>
       )}
 
-      <main id="main-content" ref={mainRef} tabIndex={-1} className="outline-none"><Outlet /></main>
+      <main id="main-content" ref={mainRef} tabIndex={-1} className="outline-none flex-1"><Outlet /></main>
 
-      <footer className="max-w-7xl mx-auto px-6 py-8 text-xs text-slate-400">
+      <footer className="w-full max-w-7xl mx-auto px-6 py-8 text-xs text-slate-400">
         Learning DNA - a community-service project of K.R. Mangalam University.
       </footer>
     </div>

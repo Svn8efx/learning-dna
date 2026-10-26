@@ -109,3 +109,12 @@ test('My code page shows the code and a labelled form to continue with a code', 
   expect(c.querySelector('label[for="code-input"]')).not.toBeNull();
   expect(Array.from(c.querySelectorAll('button')).some((b) => /log out/i.test(b.textContent))).toBe(true);
 });
+
+test('loading screen is announced and explains slow first loads', async () => {
+  const LoadingScreen = require('./components/LoadingScreen').default;
+  const c = await mount(<LoadingScreen label="Loading your progress" slowAfterMs={50} />);
+  expect(c.querySelector('[role="status"]').textContent).toContain('Loading your progress');
+  expect(c.textContent).not.toContain('waking up');
+  await act(async () => { await new Promise((r) => setTimeout(r, 120)); });
+  expect(c.textContent).toContain('waking up');
+});

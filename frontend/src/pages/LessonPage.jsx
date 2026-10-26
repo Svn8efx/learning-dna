@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import LoadingScreen from '../components/LoadingScreen';
 import { Link, useParams } from 'react-router-dom';
 import { Volume2, VolumeX } from 'lucide-react';
 import { apiFetch } from '../utils/api';
@@ -31,7 +32,7 @@ export default function LessonPage() {
   };
 
   if (error) return <div className="max-w-3xl mx-auto px-6 py-10"><p role="alert" className="text-red-300">{error}</p><Link to="/lessons" className="btn-cyber mt-4 inline-block">Back to lessons</Link></div>;
-  if (!lesson) return <div className="max-w-3xl mx-auto px-6 py-10 text-slate-300" role="status">Loading lesson...</div>;
+  if (!lesson) return <LoadingScreen label="Loading the lesson" />;
 
   return (
     <article className="max-w-3xl mx-auto px-6 py-10">

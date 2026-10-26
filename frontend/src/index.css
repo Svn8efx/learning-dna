@@ -550,6 +550,15 @@ html[data-targets="large"] select { min-height: 48px; min-width: 48px; }
 html[data-targets="large"] nav a { padding: 8px 10px; }
 html[data-targets="large"] input[type="checkbox"], html[data-targets="large"] input[type="radio"] { width: 26px; height: 26px; }
 
+/* Loading spinner */
+.dna-spinner {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 4px solid rgba(45, 212, 191, 0.2);
+  border-top-color: #2dd4bf;
+  animation: dna-spin 0.9s linear infinite;
+}
+@keyframes dna-spin { to { transform: rotate(360deg); } }
+
 /* Reduce motion */
 html[data-motion="reduce"] *, html[data-motion="reduce"] *::before, html[data-motion="reduce"] *::after {
   animation: none !important; transition: none !important; scroll-behavior: auto !important;
