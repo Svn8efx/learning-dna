@@ -67,6 +67,7 @@ export default function DashboardPage() {
   } = useFlaskData();
 
   const [activeTab, setActiveTab] = useState('overview');
+  const hasResults = Array.isArray(assessment) && assessment.length > 0;   // has the student taken a quiz yet?
 
   const overallLevel = avgScore >= 75 ? 'advanced' : avgScore >= 45 ? 'intermediate' : 'beginner';
   const lvlCfg = LEVEL_CONFIG[overallLevel];
@@ -196,15 +197,23 @@ export default function DashboardPage() {
             <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
               <div className="glass-card p-3">
                 <div className="text-xs text-slate-500 mb-1 flex items-center gap-1"><AlertTriangle size={12} aria-hidden="true" /> Weak Areas</div>
-                <div className="font-display font-medium text-red-400 text-sm capitalize">
-                  {weakTopics.length ? weakTopics.join(', ') : 'None. Great job!'}
-                </div>
+                {!hasResults ? (
+                  <div className="text-slate-300 text-sm">No quiz results yet. <Link to="/quiz" className="text-teal-300 underline">Take the quiz</Link> to find out.</div>
+                ) : weakTopics.length ? (
+                  <div className="font-display font-medium text-amber-300 text-sm capitalize">{weakTopics.join(', ')}</div>
+                ) : (
+                  <div className="text-slate-300 text-sm">No topic scored below 45%.</div>
+                )}
               </div>
               <div className="glass-card p-3">
                 <div className="text-xs text-slate-500 mb-1 flex items-center gap-1"><Sparkles size={12} aria-hidden="true" /> Strengths</div>
-                <div className="font-display font-medium text-green-400 text-sm capitalize">
-                  {strengths.length ? strengths.join(', ') : 'Keep practicing!'}
-                </div>
+                {!hasResults ? (
+                  <div className="text-slate-300 text-sm">No quiz results yet. <Link to="/quiz" className="text-teal-300 underline">Take the quiz</Link> to find out.</div>
+                ) : strengths.length ? (
+                  <div className="font-display font-medium text-teal-300 text-sm capitalize">{strengths.join(', ')}</div>
+                ) : (
+                  <div className="text-slate-300 text-sm">No topic at 75% or above yet.</div>
+                )}
               </div>
             </div>
           </div>
@@ -320,8 +329,10 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {weakTopics.length === 0 && (
-                  <div className="p-4 rounded-xl bg-green-400/5 border border-green-400/20 text-green-400 text-sm">
-                    No critical weak topics. Consider advancing to deeper resources.
+                  <div className="p-4 rounded-xl bg-teal-400/5 border border-teal-400/20 text-teal-300 text-sm">
+                    {hasResults
+                      ? 'No topic scored below 45%. Consider moving on to deeper resources.'
+                      : 'Take the quiz first. Your focus areas will appear here.'}
                   </div>
                 )}
               </div>
