@@ -258,7 +258,7 @@ def _shuffle_options(question: dict, rng: random.Random) -> dict:
 def _question_variants(topic: str, idx: int, question: dict, rng: random.Random) -> list[dict]:
     stems = [
         question["q"],
-        f"Topic check — {question['q']}",
+        f"Topic check: {question['q']}",
         f"Choose the best answer for {topic.title()}: {question['q']}",
         f"Quick revision: {question['q']}",
         f"Selected syllabus topic: {topic.title()}. {question['q']}",

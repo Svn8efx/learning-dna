@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
   LayoutDashboard, TrendingUp, Brain, BookOpen, Zap, Target,
-  ArrowRight, Info, ChevronRight, Cpu, Database, Star
+  ArrowRight, Info, ChevronRight, Cpu, Database, Star, AlertTriangle, Sparkles
 } from 'lucide-react';
 import { useFlaskData } from '../hooks/useFlaskData';
 import StatCard from '../components/StatCard';
@@ -41,7 +41,7 @@ function CustomTooltip({ active, payload, label, aiFeatures = [], mlFeatures = [
               <div className="space-y-2">{(aiFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
             </div>
             <div>
-              <div className="text-purple-400 text-xs mb-2">ML features</div>
+              <div className="text-teal-400 text-xs mb-2">ML features</div>
               <div className="space-y-2">{(mlFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
             </div>
           </div>
@@ -103,7 +103,7 @@ export default function DashboardPage() {
         <StatCard icon={Zap}            label="Learning Score"  value={`${learningScore || 0}%`}   color="green" />
         <StatCard icon={BookOpen}       label="Topics Chosen"    value={profile?.topics?.length || 0} color="purple" />
         <StatCard icon={Cpu}            label="Best Classifier"  value={modelName}               color="green"  sub={automlEngine} />
-        <StatCard icon={Database}       label="Training Rows"    value={dataInfo?.rows || '—'}   color="pink"   sub={dataInfo?.real_data_used ? 'Real Kaggle' : 'Sample data'} />
+        <StatCard icon={Database}       label="Training Rows"    value={dataInfo?.rows || 'n/a'}   color="pink"   sub={dataInfo?.real_data_used ? 'Real Kaggle' : 'Sample data'} />
       </div>
 
       {/* Tab nav */}
@@ -195,13 +195,13 @@ export default function DashboardPage() {
             {/* Focus areas */}
             <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
               <div className="glass-card p-3">
-                <div className="text-xs text-slate-500 mb-1">⚠ Weak Areas</div>
+                <div className="text-xs text-slate-500 mb-1 flex items-center gap-1"><AlertTriangle size={12} aria-hidden="true" /> Weak Areas</div>
                 <div className="font-display font-medium text-red-400 text-sm capitalize">
-                  {weakTopics.length ? weakTopics.join(', ') : 'None — great job!'}
+                  {weakTopics.length ? weakTopics.join(', ') : 'None. Great job!'}
                 </div>
               </div>
               <div className="glass-card p-3">
-                <div className="text-xs text-slate-500 mb-1">✦ Strengths</div>
+                <div className="text-xs text-slate-500 mb-1 flex items-center gap-1"><Sparkles size={12} aria-hidden="true" /> Strengths</div>
                 <div className="font-display font-medium text-green-400 text-sm capitalize">
                   {strengths.length ? strengths.join(', ') : 'Keep practicing!'}
                 </div>
@@ -233,7 +233,7 @@ export default function DashboardPage() {
                   />
                 } />
                 <Line type="monotone" dataKey="accuracy" stroke="#00d4ff" strokeWidth={2.5} dot={{ fill: '#00d4ff', r: 4, strokeWidth: 0 }} name="Accuracy" activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="target" stroke="rgba(168,85,247,0.4)" strokeWidth={1.5} strokeDasharray="5 5" dot={false} name="Target" />
+                <Line type="monotone" dataKey="target" stroke="rgba(148,163,184,0.6)" strokeWidth={1.5} strokeDasharray="5 5" dot={false} name="Target" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -316,12 +316,12 @@ export default function DashboardPage() {
                       <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
                       <span className="text-red-400 text-sm font-semibold capitalize">{topic}</span>
                     </div>
-                    <div className="text-slate-500 text-xs">Focus area — go to Resources for curated videos and courses</div>
+                    <div className="text-slate-500 text-xs">Focus area: go to Resources for curated videos and courses</div>
                   </div>
                 ))}
                 {weakTopics.length === 0 && (
                   <div className="p-4 rounded-xl bg-green-400/5 border border-green-400/20 text-green-400 text-sm">
-                    ✦ No critical weak topics! Consider advancing to deeper resources.
+                    No critical weak topics. Consider advancing to deeper resources.
                   </div>
                 )}
               </div>
@@ -343,7 +343,7 @@ export default function DashboardPage() {
               The model classified you as <span className="text-teal-400 font-semibold">{overallLevel}</span> based on:
               your quiz score of <span className="font-mono text-white">{avgScore}%</span>, topic count of{' '}
               <span className="font-mono text-white">{assessment.length}</span>, and performance distribution across weak
-              vs strong topics. The <span className="text-purple-400">{modelName}</span> algorithm was selected by AutoML
+              vs strong topics. The <span className="text-teal-400">{modelName}</span> algorithm was selected by AutoML
               as the best performing classifier on the training set.
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -375,7 +375,7 @@ export default function DashboardPage() {
                       <div className="difficulty-track mt-1 w-full">
                         <div className="difficulty-fill" style={{
                           width: `${pct}%`,
-                          background: isTop ? 'linear-gradient(90deg, #00d4ff, #a855f7)' : 'rgba(148,163,184,0.4)'
+                          background: isTop ? '#14b8a6' : 'rgba(148,163,184,0.4)'
                         }} />
                       </div>
                     </div>
@@ -397,7 +397,7 @@ export default function DashboardPage() {
               <div className="space-y-2">{(aiFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
             </div>
             <div>
-              <div className="text-purple-400 text-xs mb-2">ML features</div>
+              <div className="text-teal-400 text-xs mb-2">ML features</div>
               <div className="space-y-2">{(mlFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
             </div>
           </div>

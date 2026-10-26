@@ -70,7 +70,7 @@ function CourseCard({ course }) {
             </span>
           )}
           {course.verified && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-400/10 border border-green-400/30 text-green-400">✓ VER</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-400/10 border border-green-400/30 text-green-400">Verified</span>
           )}
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function ResourcesPage() {
         <FolderOpen size={20} className="text-teal-400" />
         <div>
           <h1 className="font-display font-bold text-2xl text-white">Learning Resources</h1>
-          <p className="text-slate-500 text-sm">Videos, courses, datasets & projects — ranked for your level</p>
+          <p className="text-slate-500 text-sm">Videos, courses, datasets & projects, ranked for your level</p>
         </div>
       </div>
 
@@ -202,7 +202,7 @@ export default function ResourcesPage() {
             {/* Card header */}
             <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400/20 to-purple-400/20 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400/20 to-teal-400/20 flex items-center justify-center">
                   <BookOpen size={16} className="text-teal-400" />
                 </div>
                 <div>
@@ -220,10 +220,10 @@ export default function ResourcesPage() {
 
             {/* Mini project */}
             {card.project && (
-              <div className="px-6 py-3 bg-purple-400/5 border-b border-white/10 flex items-start gap-2">
-                <Wrench size={13} className="text-purple-400 mt-0.5 flex-shrink-0" />
+              <div className="px-6 py-3 bg-teal-400/5 border-b border-white/10 flex items-start gap-2">
+                <Wrench size={13} className="text-teal-400 mt-0.5 flex-shrink-0" />
                 <div>
-                  <span className="text-purple-400 text-xs font-semibold mr-2">Mini Project:</span>
+                  <span className="text-teal-400 text-xs font-semibold mr-2">Mini Project:</span>
                   <span className="text-slate-300 text-xs">{card.project}</span>
                 </div>
               </div>

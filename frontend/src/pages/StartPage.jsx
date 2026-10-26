@@ -77,12 +77,12 @@ export default function StartPage() {
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="glass-card p-5">
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={15} className="text-purple-400" />
+            <Sparkles size={15} className="text-teal-400" />
             <span className="font-display font-semibold text-white text-sm">Quick presets</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {PRESETS.map(p => (
-              <button key={p.label} type="button" onClick={() => loadPreset(p)} className="px-3 py-1.5 rounded-lg bg-purple-400/10 border border-purple-400/20 text-purple-400 text-xs font-medium hover:bg-purple-400/20 transition-colors">
+              <button key={p.label} type="button" onClick={() => loadPreset(p)} className="px-3 py-1.5 rounded-lg bg-teal-400/10 border border-teal-400/20 text-teal-400 text-xs font-medium hover:bg-teal-400/20 transition-colors">
                 {p.label}
               </button>
             ))}

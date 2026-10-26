@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Map, Play, Lock, CheckCircle, ChevronRight, ExternalLink, BookOpen, Video, Layers } from 'lucide-react';
+import { Map, Play, Lock, CheckCircle, ChevronRight, ExternalLink, BookOpen, Video, Layers, Target } from 'lucide-react';
 import { useFlaskData } from '../hooks/useFlaskData';
 import { apiFetch } from '../utils/api';
 import VideoPlayerModal from '../components/VideoPlayerModal';
@@ -231,7 +231,7 @@ export default function LearningPathPage() {
             <Map size={18} className="text-teal-400" />
             <h1 className="font-display font-bold text-2xl text-white">Learning Path</h1>
           </div>
-          <p className="text-slate-500 text-sm">Topics ordered by prerequisites — click a node to explore</p>
+          <p className="text-slate-500 text-sm">Topics ordered by prerequisites. Click a node to explore</p>
         </div>
         <div className="flex gap-3 flex-wrap text-xs">
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
@@ -259,7 +259,7 @@ export default function LearningPathPage() {
             </div>
             <div className="difficulty-track">
               <div
-                className="difficulty-fill bg-gradient-to-r from-teal-400 to-purple-500"
+                className="difficulty-fill bg-gradient-to-r from-teal-400 to-teal-500"
                 style={{ width: `${completionPct}%` }}
               />
             </div>
@@ -302,8 +302,8 @@ export default function LearningPathPage() {
               <div className="text-[11px] text-slate-500">Updating your path also updates the adaptive learning score and unlocks the next topic.</div>
 
               {/* Mini project */}
-              <div className="p-3 rounded-xl bg-purple-400/6 border border-purple-400/20">
-                <div className="text-xs text-purple-400 font-semibold mb-1">🎯 Mini Project</div>
+              <div className="p-3 rounded-xl bg-teal-400/6 border border-teal-400/20">
+                <div className="text-xs text-teal-400 font-semibold mb-1 flex items-center gap-1"><Target size={12} aria-hidden="true" /> Mini Project</div>
                 <div className="text-slate-300 text-xs leading-relaxed">{selected.project}</div>
               </div>
 
@@ -367,7 +367,7 @@ export default function LearningPathPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-white text-xs font-medium leading-tight truncate group-hover:text-teal-400 transition-colors">{c.title}</div>
-                          <div className="text-slate-500 text-[10px] mt-0.5">{c.provider} · ⭐ {c.rating || 'NA'}</div>
+                          <div className="text-slate-500 text-[10px] mt-0.5">{c.provider} · {c.rating ? `Rating ${c.rating}` : 'Not rated'}</div>
                         </div>
                         {c.certificate && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 flex-shrink-0">CERT</span>
@@ -382,15 +382,15 @@ export default function LearningPathPage() {
               {displayedResources?.datasets?.length > 0 && (
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
-                    <Layers size={13} className="text-violet-400" />
+                    <Layers size={13} className="text-teal-400" />
                     <span className="text-xs text-slate-400 font-semibold">Datasets</span>
                   </div>
                   <div className="space-y-2">
                     {displayedResources.datasets.map((ds, i) => (
                       <a key={i} href={ds.url} target="_blank" rel="noreferrer"
-                        className="flex items-start gap-2 p-2.5 rounded-xl bg-white/4 border border-white/8 hover:border-violet-400/20 transition-all group">
-                        <div className="w-7 h-7 rounded-lg bg-violet-400/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-violet-400 text-xs">DS</span>
+                        className="flex items-start gap-2 p-2.5 rounded-xl bg-white/4 border border-white/8 hover:border-teal-400/20 transition-all group">
+                        <div className="w-7 h-7 rounded-lg bg-teal-400/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-teal-400 text-xs">DS</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-white text-xs font-medium leading-tight truncate group-hover:text-teal-400 transition-colors">{ds.title}</div>

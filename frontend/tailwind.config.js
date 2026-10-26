@@ -15,16 +15,16 @@ module.exports = {
         },
         neon: {
           blue: '#2dd4bf',
-          purple: '#a855f7',
+          purple: '#5eead4',
           green: '#22d3ee',
           pink: '#f472b6',
           orange: '#fb923c',
         },
         dark: {
-          100: '#1e2035',
-          200: '#161827',
-          300: '#0f1020',
-          400: '#080912',
+          100: '#16282b',
+          200: '#102123',
+          300: '#0b1a1c',
+          400: '#071213',
         }
       },
       fontFamily: {

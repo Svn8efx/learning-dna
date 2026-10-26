@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap, Brain, TrendingUp, Map, BookOpen, MessageSquare, ArrowRight, Star, Users, Award } from 'lucide-react';
+import { Zap, Brain, TrendingUp, Map, BookOpen, MessageSquare, ArrowRight, Star, Users, Award, Sparkles } from 'lucide-react';
 
 const FEATURES = [
   { icon: Brain, title: 'Adaptive Assessment', desc: 'Quizzes that measure your knowledge level topic by topic and adjust to you.', color: 'cyan' },
@@ -19,7 +19,7 @@ const STATS = [
 
 const colorMap = {
   cyan: 'text-teal-400 bg-teal-400/10 border-teal-400/20',
-  purple: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
+  purple: 'text-teal-400 bg-teal-400/10 border-teal-400/20',
   green: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
   pink: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
   orange: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
@@ -30,17 +30,17 @@ export default function HomePage() {
     <div className="px-6 py-8 max-w-6xl mx-auto">
       {/* Hero */}
       <div className="relative rounded-2xl overflow-hidden mb-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 via-purple-500/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 via-teal-500/10 to-transparent" />
         <div className="absolute inset-0 grid-bg opacity-50" />
 
         {/* Floating orbs */}
         <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-teal-400/5 blur-3xl" />
-        <div className="absolute -bottom-10 -left-10 w-60 h-60 rounded-full bg-purple-500/8 blur-3xl" />
+        <div className="absolute -bottom-10 -left-10 w-60 h-60 rounded-full bg-teal-500/8 blur-3xl" />
 
         <div className="relative p-10 lg:p-14">
           <div className="flex items-center gap-2 mb-6">
             <span className="px-3 py-1 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-400 text-xs font-mono font-semibold tracking-wider">
-              ✦ LEARNING THAT ADAPTS TO YOU
+              <Sparkles size={12} className="inline-block mr-1.5 -mt-0.5" aria-hidden="true" />LEARNING THAT ADAPTS TO YOU
             </span>
           </div>
 
@@ -125,7 +125,7 @@ export default function HomePage() {
       {/* Features grid */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <div className="w-1 h-5 bg-purple-400 rounded-full" />
+          <div className="w-1 h-5 bg-teal-400 rounded-full" />
           <h2 className="font-display font-semibold text-white text-xl">Platform Features</h2>
         </div>
         <p className="text-slate-500 text-sm mb-6 ml-3">Tools built around how you learn</p>

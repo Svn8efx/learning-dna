@@ -1,4 +1,4 @@
-// Mock data fallbacks — used when Flask session data is not injected
+// Mock data fallbacks, used when Flask session data is not injected
 // Flask injects real data via: window.__ASSESSMENT__ = {{ assessment | tojson }};
 
 export const mockAssessment = [
@@ -175,7 +175,7 @@ export const mockResources = [
 export const mockChatHistory = [
   {
     role: 'ai',
-    text: "Hi! I'm your AI Tutor. I've analyzed your quiz results and learning path. Ask me anything — what to study next, which resources to use, or how to improve your weak areas.",
+    text: "Hi! I'm your AI Tutor. I've analyzed your quiz results and learning path. Ask me anything: what to study next, which resources to use, or how to improve your weak areas.",
     time: '09:41 AM',
   },
 ];

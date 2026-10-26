@@ -2,7 +2,7 @@ import React from 'react';
 
 const glowMap = {
   cyan:   'stat-glow-blue  border-teal-400/20',
-  purple: 'stat-glow-purple border-purple-400/20',
+  purple: 'stat-glow-purple border-teal-400/20',
   green:  'stat-glow-green  border-emerald-400/20',
   pink:   'stat-glow-pink   border-pink-400/20',
   orange: 'border-orange-400/20',
@@ -10,7 +10,7 @@ const glowMap = {
 
 const iconBgMap = {
   cyan:   'bg-teal-400/10 text-teal-400',
-  purple: 'bg-purple-400/10 text-purple-400',
+  purple: 'bg-teal-400/10 text-teal-400',
   green:  'bg-emerald-400/10 text-emerald-400',
   pink:   'bg-pink-400/10 text-pink-400',
   orange: 'bg-orange-400/10 text-orange-400',

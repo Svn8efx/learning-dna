@@ -118,7 +118,7 @@ export default function QuizPage() {
             <span className="text-slate-400">Overall Progress</span>
             <span className="text-teal-400 font-mono font-medium">{Object.keys(answers).length}/{total}</span>
           </div>
-          <div className="difficulty-track"><div className="difficulty-fill bg-gradient-to-r from-teal-400 to-purple-500" style={{ width: `${progress}%` }} /></div>
+          <div className="difficulty-track"><div className="difficulty-fill bg-gradient-to-r from-teal-400 to-teal-500" style={{ width: `${progress}%` }} /></div>
         </div>
         <div className="text-center"><div className="font-display font-bold text-white text-2xl">{currentQ + 1}</div><div className="text-slate-500 text-xs">of {total}</div></div>
         <div className="flex items-center gap-1.5 text-slate-400 text-xs"><Clock size={12} /><span>~{Math.ceil(total * 1.5)} min</span></div>
@@ -131,7 +131,7 @@ export default function QuizPage() {
             <div key={qKey} style={{ display: idx === currentQ ? 'block' : 'none' }}>
               <div className="glass-card p-6 mb-4">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="px-3 py-1 rounded-full bg-purple-400/10 border border-purple-400/20 text-purple-400 text-xs font-semibold font-mono uppercase tracking-wider">{q.topic}</span>
+                  <span className="px-3 py-1 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-400 text-xs font-semibold font-mono uppercase tracking-wider">{q.topic}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-slate-500">Difficulty</span>
                     <div className="flex items-center gap-1.5">
