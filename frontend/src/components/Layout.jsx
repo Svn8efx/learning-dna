@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Dna, Search, Bell, RotateCcw, Accessibility, Volume2, KeyRound } from 'lucide-react';
+import { Dna, Search, Bell, Github, Accessibility, Volume2, KeyRound } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
@@ -119,14 +119,6 @@ export default function Layout() {
     setShowSearch(true);
   };
 
-  const resetAll = async () => {
-    if (!window.confirm('Start a new study plan? Your accessibility settings are kept.')) return;
-    await apiFetch('/api/reset', { method: 'POST' });
-    sessionStorage.clear();
-    navigate('/');
-    window.location.reload();
-  };
-
   return (
     <div className="min-h-screen flex flex-col text-white">
       <a href="#main-content" className="skip-link" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
@@ -156,7 +148,7 @@ export default function Layout() {
             <Link to="/my-code" className="btn-cyber flex items-center gap-1"><KeyRound size={14} aria-hidden="true" /> My code</Link>
             <LogoutButton />
             <button type="button" className="btn-cyber" aria-label="Notifications" aria-expanded={showNotifications} onClick={() => setShowNotifications(s => !s)}><Bell size={14} /></button>
-            <button type="button" className="btn-cyber" aria-label="Start a new study plan" onClick={resetAll}><RotateCcw size={14} /></button>
+            <a className="btn-cyber" href="https://github.com/Svn8efx/learning-dna" target="_blank" rel="noopener noreferrer" aria-label="Learning DNA source code on GitHub (opens in a new tab)"><Github size={14} aria-hidden="true" /></a>
           </div>
         </div>
         {prefs.voice_commands && lastHeard && (

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyRound, Copy, Download, Volume2, LogIn } from 'lucide-react';
+import { KeyRound, Copy, Download, Volume2, LogIn, RotateCcw } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import LogoutButton from '../components/LogoutButton';
@@ -43,6 +43,17 @@ export default function MyCodePage() {
 
   const readAloud = () => {
     if (!speak(`Your code is ${code.split('-').join(', ')}.`, 'my-code')) announce('Your browser cannot read text aloud.');
+  };
+
+  const startOver = async () => {
+    if (!window.confirm('Start a new study plan? Your accessibility settings and your code are kept.')) return;
+    try {
+      await apiFetch('/api/reset', { method: 'POST' });
+      sessionStorage.clear();
+      window.location.assign('/');
+    } catch (err) {
+      setMessage({ kind: 'error', text: err.message || 'Could not start a new plan. Please try again.' });
+    }
   };
 
   const resume = async (e) => {
@@ -132,6 +143,16 @@ export default function MyCodePage() {
             {message.text}
           </p>
         )}
+      </section>
+
+      <section aria-labelledby="restart-title" className="glass-card p-6 space-y-3">
+        <h2 id="restart-title" className="font-display font-semibold text-white">Start a new study plan</h2>
+        <p className="text-slate-300 text-sm">
+          This clears your current plan and quiz so you can begin again. Your accessibility settings and your code are kept.
+        </p>
+        <button type="button" className="btn-cyber flex items-center gap-1" onClick={startOver}>
+          <RotateCcw size={14} aria-hidden="true" /> Start a new study plan
+        </button>
       </section>
 
       <section aria-labelledby="logout-title" className="glass-card p-6 space-y-3">
