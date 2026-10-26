@@ -128,8 +128,15 @@ export default function Layout() {
       <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-white/10 bg-slate-950/70">
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center gap-x-4 gap-y-3">
           <Link to="/" className="flex items-center gap-3 font-display font-bold text-lg"><Dna className="text-teal-400" size={22} />Learning DNA</Link>
-          <nav aria-label="Main" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm order-3 md:order-none w-full md:w-auto">
-            {NAV.map(([to, label]) => <NavLink key={to} to={to}>{label}</NavLink>)}
+          <nav aria-label="Main" className="flex flex-wrap items-stretch gap-1 text-sm order-3 w-full">
+            {NAV.map(([to, label]) => (
+              <NavLink
+                key={to} to={to}
+                className={({ isActive }) => `flex-1 min-w-[5.5rem] text-center px-3 py-2.5 rounded-lg font-medium transition-colors ${isActive ? 'bg-teal-400/15 text-teal-300' : 'text-slate-200 hover:bg-white/10 hover:text-white'}`}
+              >
+                {label}
+              </NavLink>
+            ))}
           </nav>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <form onSubmit={runSearch} role="search" className="hidden md:flex items-center gap-2">

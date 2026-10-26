@@ -547,7 +547,7 @@ html[data-targets="large"] a.btn-cyber-solid,
 html[data-targets="large"] nav a,
 html[data-targets="large"] input[type="text"],
 html[data-targets="large"] select { min-height: 48px; min-width: 48px; }
-html[data-targets="large"] nav a { padding: 8px 10px; }
+html[data-targets="large"] nav a { padding: 12px 14px; }
 html[data-targets="large"] input[type="checkbox"], html[data-targets="large"] input[type="radio"] { width: 26px; height: 26px; }
 
 /* Loading spinner */
