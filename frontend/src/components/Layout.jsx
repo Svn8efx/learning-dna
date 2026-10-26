@@ -7,10 +7,11 @@ import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import AccessibilityPanel from './AccessibilityPanel';
 import LogoutButton from './LogoutButton';
 
+// Dashboard first, then set-up steps, then learning, then tracking.
 const NAV = [
-  ['/goals', 'Goals'], ['/start', 'Start'], ['/quiz', 'Quiz'], ['/dashboard', 'Dashboard'],
-  ['/path', 'Path'], ['/lessons', 'Lessons'], ['/resources', 'Resources'], ['/tutor', 'Tutor'],
-  ['/my-dna', 'My DNA'], ['/progress', 'Progress'],
+  ['/dashboard', 'Dashboard'], ['/my-dna', 'My DNA'], ['/goals', 'Goals'], ['/start', 'Start'],
+  ['/quiz', 'Quiz'], ['/path', 'Path'], ['/lessons', 'Lessons'], ['/resources', 'Resources'],
+  ['/tutor', 'Tutor'], ['/progress', 'Progress'],
 ];
 
 const PAGE_TITLES = {

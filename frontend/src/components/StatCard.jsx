@@ -16,24 +16,24 @@ const iconBgMap = {
   orange: 'bg-orange-400/10 text-orange-400',
 };
 
-export default function StatCard({ icon: Icon, label, value, sub, color = 'cyan', trend }) {
+/** Compact rectangular stat: icon on the left, value and label on the right. `trend` is optional and only shown when real data supplies it. */
+export default function StatCard({ icon: Icon, label, value, sub, color = 'cyan', trend, className = '' }) {
   return (
-    <div className={`glass-card p-5 border ${glowMap[color]} flex flex-col gap-3`}>
-      <div className="flex items-center justify-between">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${iconBgMap[color]}`}>
-          <Icon size={17} />
-        </div>
-        {trend !== undefined && (
-          <span className={`text-xs font-mono font-semibold px-2 py-0.5 rounded-full
-            ${trend >= 0 ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'}`}>
-            {trend >= 0 ? '+' : ''}{trend}%
-          </span>
-        )}
+    <div className={`glass-card p-4 border ${glowMap[color]} flex items-center gap-4 ${className}`}>
+      <div className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${iconBgMap[color]}`}>
+        <Icon size={20} aria-hidden="true" />
       </div>
-      <div>
-        <div className="font-display font-bold text-2xl text-white leading-none">{value}</div>
-        <div className="text-slate-400 text-sm mt-1">{label}</div>
-        {sub && <div className="text-slate-600 text-xs mt-0.5 font-mono">{sub}</div>}
+      <div className="min-w-0">
+        <div className="font-display font-bold text-xl text-white leading-tight break-words">
+          {value}
+          {trend !== undefined && (
+            <span className={`ml-2 align-middle text-xs font-mono font-semibold px-2 py-0.5 rounded-full ${trend >= 0 ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'}`}>
+              {trend >= 0 ? '+' : ''}{trend}%
+            </span>
+          )}
+        </div>
+        <div className="text-slate-300 text-sm">{label}</div>
+        {sub && <div className="text-slate-300 text-xs mt-0.5 font-mono break-words">{sub}</div>}
       </div>
     </div>
   );

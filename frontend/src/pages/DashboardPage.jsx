@@ -99,12 +99,12 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={TrendingUp}     label="Avg Quiz Score"   value={`${avgScore}%`}         color="cyan"   trend={+12} />
-        <StatCard icon={Zap}            label="Learning Score"  value={`${learningScore || 0}%`}   color="green" />
-        <StatCard icon={BookOpen}       label="Topics Chosen"    value={profile?.topics?.length || 0} color="purple" />
-        <StatCard icon={Cpu}            label="Best Classifier"  value={modelName}               color="green"  sub={automlEngine} />
-        <StatCard icon={Database}       label="Training Rows"    value={dataInfo?.rows || 'n/a'}   color="pink"   sub={dataInfo?.real_data_used ? 'Real Kaggle' : 'Sample data'} />
+      <div className="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-5 gap-4">
+        <StatCard className="md:col-span-2 xl:col-span-1" icon={TrendingUp} label="Avg Quiz Score"  value={`${avgScore}%`} color="cyan" />
+        <StatCard className="md:col-span-2 xl:col-span-1" icon={Zap}        label="Learning Score"  value={`${learningScore || 0}%`} color="green" />
+        <StatCard className="md:col-span-2 xl:col-span-1" icon={BookOpen}   label="Topics Chosen"   value={profile?.topics?.length || 0} color="purple" />
+        <StatCard className="md:col-span-3 xl:col-span-1" icon={Cpu}        label="Best Classifier" value={modelName} color="green" sub={automlEngine} />
+        <StatCard className="col-span-2 md:col-span-3 xl:col-span-1" icon={Database} label="Training Rows" value={dataInfo?.rows || 'n/a'} color="pink" sub={dataInfo?.real_data_used ? 'Real Kaggle' : 'Sample data'} />
       </div>
 
       {/* Tab nav */}
