@@ -1,52 +1,53 @@
-
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FileText, Target, Sparkles, ArrowRight, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ArrowRight, Check } from 'lucide-react';
 import { useFlaskData } from '../hooks/useFlaskData';
 import { apiFetch } from '../utils/api';
-
-const SAMPLE_TOPICS = [
-  'Python', 'Data Preprocessing', 'Statistics', 'Probability', 'Feature Engineering', 'Linear Regression', 'Classification',
-  'Decision Trees', 'Clustering', 'Model Evaluation', 'Naive Bayes', 'Neural Networks', 'Computer Vision', 'NLP', 'Transformers', 'LLM', 'Prompt Engineering', 'Generative AI', 'Reinforcement Learning', 'AutoML', 'Model Deployment',
-];
+import { PageHeader, Notice, capitalize } from '../components/ui';
+import { GOAL_TEXT } from './GoalSelectionPage';
 
 const PRESETS = [
-  { label: 'ML Basics', text: 'Python, data preprocessing, statistics, linear regression, classification, decision tree' },
-  { label: 'Deep Learning', text: 'Python, neural networks, computer vision, NLP, transformers, LLM, generative AI' },
-  { label: 'Full ML Stack', text: 'Python, statistics, probability, data preprocessing, feature engineering, linear regression, classification, decision trees, model evaluation, clustering, AutoML, model deployment' },
+  { label: 'ML basics', text: 'Python, data preprocessing, statistics, linear regression, classification, decision trees' },
+  { label: 'Deep learning', text: 'Python, neural networks, computer vision, NLP, transformers, LLM, generative AI' },
+  { label: 'Full ML stack', text: 'Python, statistics, probability, data preprocessing, feature engineering, linear regression, classification, decision trees, model evaluation, clustering, AutoML, model deployment' },
 ];
+
+const tokens = (text) => text.split(/[,\n]/).map((t) => t.trim()).filter(Boolean);
 
 export default function StartPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { savePartial } = useFlaskData();
-  const goalFromState = location.state?.goal;
+  const { savePartial, profile, availableTopics, loaded } = useFlaskData();
+  const goalId = location.state?.goal;
 
   const [syllabusText, setSyllabusText] = useState('');
-  const [targetGoal, setTargetGoal] = useState(
-    goalFromState === 'placement' ? 'ML for placement prep at top tech companies' :
-    goalFromState === 'project' ? 'Build a production AI project with deployment' :
-    goalFromState === 'deeplearning' ? 'Master deep learning and neural networks' : ''
-  );
-  const [tags, setTags] = useState([]);
+  const [targetGoal, setTargetGoal] = useState(GOAL_TEXT[goalId] || '');
+  const [prefilled, setPrefilled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const addTag = (topic) => {
-    if (!tags.includes(topic)) setTags([...tags, topic]);
-    setSyllabusText(prev => (prev ? prev + ', ' + topic : topic));
-  };
+  const hasPlan = loaded && profile?.topics?.length > 0;
 
-  const removeTag = (t) => setTags(tags.filter(x => x !== t));
+  // When the learner already has a plan, start from it instead of an empty form
+  useEffect(() => {
+    if (prefilled || !loaded) return;
+    setPrefilled(true);
+    if (profile?.syllabus_text && !syllabusText) setSyllabusText(profile.syllabus_text);
+    if (!targetGoal && profile?.target_goal) setTargetGoal(profile.target_goal);
+  }, [loaded, profile]);
 
-  const loadPreset = (preset) => {
-    setSyllabusText(preset.text);
-    setTags(preset.text.split(',').map(s => s.trim()).filter(Boolean).slice(0, 8));
+  const supported = useMemo(() => (availableTopics?.length ? availableTopics : []), [availableTopics]);
+  const chosen = useMemo(() => new Set(tokens(syllabusText).map((t) => t.toLowerCase())), [syllabusText]);
+
+  const toggleTopic = (topic) => {
+    const list = tokens(syllabusText);
+    const exists = list.some((t) => t.toLowerCase() === topic.toLowerCase());
+    setSyllabusText((exists ? list.filter((t) => t.toLowerCase() !== topic.toLowerCase()) : [...list, topic]).join(', '));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!syllabusText.trim()) return;
+    if (!syllabusText.trim() || loading) return;
     setLoading(true);
     setError('');
     try {
@@ -58,82 +59,82 @@ export default function StartPage() {
       savePartial({ profile: data.profile, quizItems: data.quizItems, assessment: [], learningPath: [], resources: [] });
       navigate('/quiz');
     } catch (err) {
-      setError(err.message || 'Something went wrong.');
+      setError(err.message || 'Something went wrong while building your plan. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="px-6 py-8 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-400 text-xs font-mono mb-4">
-          STEP 2 OF 4 · BUILD YOUR PLAN
-        </div>
-        <h1 className="font-display font-bold text-3xl text-white mb-2">Create your <span className="neon-text-purple">personalized</span> study plan</h1>
-        <p className="text-slate-400">Paste your syllabus or topics. The quiz will be created from those selected topics only.</p>
-      </div>
+    <div className="page-narrow">
+      <PageHeader
+        eyebrow="Step 2 of 3"
+        title={hasPlan ? 'Edit your study plan' : 'Build your study plan'}
+        lead="List the topics you need to study. Learning DNA orders them using their prerequisites and builds a quiz from them."
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={15} className="text-teal-400" />
-            <span className="font-display font-semibold text-white text-sm">Quick presets</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {PRESETS.map(p => (
-              <button key={p.label} type="button" onClick={() => loadPreset(p)} className="px-3 py-1.5 rounded-lg bg-teal-400/10 border border-teal-400/20 text-teal-400 text-xs font-medium hover:bg-teal-400/20 transition-colors">
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {hasPlan && (
+        <Notice tone="info" className="mb-6" title={`Your plan has ${profile.topics.length} topic${profile.topics.length === 1 ? '' : 's'}`}>
+          <span className="capitalize">{profile.topics.join(', ')}</span>.{' '}
+          <Link to="/dashboard">Go to the dashboard</Link> or <Link to="/quiz">take the quiz</Link>. Changing the list below and saving replaces your plan and creates a new quiz.
+        </Notice>
+      )}
 
-        <div className="glass-card p-5">
-          <label className="block mb-2">
-            <span className="font-display font-semibold text-white text-sm flex items-center gap-2"><FileText size={15} className="text-teal-400" />Paste your syllabus or topic list</span>
-            <span className="text-slate-500 text-xs mt-0.5 block">Comma separated or free text</span>
-          </label>
-          <textarea aria-label="Paste your syllabus or topics" className="cyber-input" rows={6} value={syllabusText} onChange={e => setSyllabusText(e.target.value)} placeholder="Example: Python, data preprocessing, linear regression, decision trees, clustering, neural networks, AutoML" />
+      <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+        <div>
+          <label htmlFor="syllabus" className="label">Your topics</label>
+          <textarea
+            id="syllabus" className="textarea" rows={5} value={syllabusText} onChange={(e) => setSyllabusText(e.target.value)}
+            placeholder="Python, data preprocessing, linear regression, decision trees" aria-describedby="syllabus-hint"
+          />
+          <p id="syllabus-hint" className="hint">Type topics separated by commas, or paste a syllabus. Only the topics Learning DNA knows are used; anything else is ignored.</p>
 
-          <div className="mt-3">
-            <div className="text-xs text-slate-500 mb-2">Quick add topics:</div>
-            <div className="flex flex-wrap gap-1.5">
-              {SAMPLE_TOPICS.map(t => (
-                <button key={t} type="button" onClick={() => addTag(t)} className={`px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-all ${tags.includes(t) ? 'bg-teal-400/15 border-teal-400/40 text-teal-400' : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-300'}`}>
-                  {t}
-                </button>
+          <div className="mt-4">
+            <p className="text-sm font-medium text-ink">Start from a preset</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {PRESETS.map((p) => (
+                <button key={p.label} type="button" className="btn btn-secondary btn-sm" onClick={() => setSyllabusText(p.text)}>{p.label}</button>
               ))}
             </div>
           </div>
 
-          {tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {tags.map(t => (
-                <span key={t} className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-400 text-xs">
-                  {t}
-                  <button type="button" onClick={() => removeTag(t)}><X size={10} /></button>
-                </span>
-              ))}
-            </div>
+          {supported.length > 0 && (
+            <fieldset className="mt-5">
+              <legend className="text-sm font-medium text-ink">Or choose from the {supported.length} supported topics</legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {supported.map((t) => {
+                  const on = chosen.has(t.toLowerCase());
+                  return (
+                    <button
+                      key={t} type="button" aria-pressed={on} onClick={() => toggleTopic(t)}
+                      className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-sm capitalize transition-colors ${on ? 'border-accent bg-accent-soft text-accent' : 'border-line-strong bg-surface text-ink hover:bg-sunken'}`}
+                    >
+                      {on && <Check size={14} aria-hidden="true" />}{t}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
           )}
         </div>
 
-        <div className="glass-card p-5">
-          <label className="block mb-2">
-            <span className="font-display font-semibold text-white text-sm flex items-center gap-2"><Target size={15} className="text-orange-400" />Your specific goal</span>
-          </label>
-          <input aria-label="Your specific goal" className="cyber-input" value={targetGoal} onChange={e => setTargetGoal(e.target.value)} placeholder="Example: I want to learn ML for placements and build real projects" />
+        <div>
+          <label htmlFor="goal" className="label">Your goal <span className="font-normal text-muted">(optional)</span></label>
+          <input id="goal" className="input" value={targetGoal} onChange={(e) => setTargetGoal(e.target.value)} aria-describedby="goal-hint"
+            placeholder="For example: learn ML for placements and build real projects" />
+          <p id="goal-hint" className="hint">
+            {goalId ? <>From your goal choice: {capitalize(goalId === 'deeplearning' ? 'deep learning' : goalId)}. You can edit the wording. </> : null}
+            It is shown on your dashboard.
+          </p>
         </div>
 
-        {error && <div className="text-red-400 text-sm">{error}</div>}
+        {error && <Notice tone="danger" title="Could not build your plan">{error}</Notice>}
 
-        <div className="flex items-center justify-between">
-          <div className="text-slate-500 text-xs">AI will map your selected syllabus to a custom quiz and learning path</div>
-          <button type="submit" disabled={!syllabusText.trim() || loading} className={`btn-cyber-solid flex items-center gap-2 ${(!syllabusText.trim() || loading) ? 'opacity-40 cursor-not-allowed' : ''}`}>
-            <Sparkles size={15} />
-            {loading ? 'Generating Quiz...' : 'Analyze & Continue'}
-            <ArrowRight size={15} />
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-6">
+          <p className="text-sm text-muted">{syllabusText.trim() ? `${tokens(syllabusText).length} item${tokens(syllabusText).length === 1 ? '' : 's'} entered` : 'Enter at least one topic to continue.'}</p>
+          <button type="submit" className="btn btn-primary" disabled={!syllabusText.trim() || loading}>
+            {loading ? 'Building your quiz...' : hasPlan ? 'Save plan and make a new quiz' : 'Build my plan and quiz'}
+            {!loading && <ArrowRight size={16} aria-hidden="true" />}
           </button>
         </div>
       </form>

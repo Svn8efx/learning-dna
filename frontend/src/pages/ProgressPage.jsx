@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import LoadingScreen from '../components/LoadingScreen';
+import QuizTrendChart from '../components/QuizTrendChart';
+import { PageHeader, Notice } from '../components/ui';
 
 const SETTING_NAMES = {
   high_contrast: 'High contrast', text_to_speech: 'Listen controls', captions: 'Video captions',
@@ -9,11 +11,12 @@ const SETTING_NAMES = {
   reduce_motion: 'Reduce motion', voice_commands: 'Voice commands',
 };
 
-function Stat({ label, value }) {
+function Fact({ label, value, note }) {
   return (
-    <div className="glass-card p-4">
-      <dt className="text-xs text-slate-300">{label}</dt>
-      <dd className="font-display font-bold text-2xl text-white">{value}</dd>
+    <div>
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{value}</dd>
+      {note && <dd className="mt-1 text-sm text-muted">{note}</dd>}
     </div>
   );
 }
@@ -23,7 +26,7 @@ export default function ProgressPage() {
   const [error, setError] = useState('');
 
   const load = useCallback(() => {
-    apiFetch('/api/monitor/summary').then((d) => setSummary(d.summary)).catch((e) => setError(e.message));
+    apiFetch('/api/monitor/summary').then((d) => { setSummary(d.summary); setError(''); }).catch((e) => setError(e.message));
   }, []);
 
   useEffect(() => {
@@ -34,11 +37,10 @@ export default function ProgressPage() {
 
   if (error && !summary) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center px-6 py-10">
-        <div className="text-center max-w-sm">
-          <p role="alert" className="text-red-300 mb-4">{error}</p>
-          <button type="button" className="btn-cyber" onClick={() => { setError(''); load(); }}>Try again</button>
-        </div>
+      <div className="page-narrow">
+        <PageHeader title="Progress" />
+        <Notice tone="danger" title="Your progress could not be loaded">{error}</Notice>
+        <button type="button" className="btn btn-secondary mt-4" onClick={() => { setError(''); load(); }}>Try again</button>
       </div>
     );
   }
@@ -46,76 +48,81 @@ export default function ProgressPage() {
 
   const { engagement, accessibility_usage: usage, quiz_trend: trend, progress, personalisation_effect: effect, insights } = summary;
   const activeSettings = Object.entries(usage.current_settings).filter(([k, v]) => SETTING_NAMES[k] && v).map(([k]) => SETTING_NAMES[k]);
+  const changes = Object.values(usage.setting_changes).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-      <header>
-        <h1 className="font-display font-bold text-3xl text-white mb-1">My progress</h1>
-        <p className="text-slate-300 text-sm">Updates about every 15 seconds while this page is open.</p>
-      </header>
+    <div className="page">
+      <PageHeader title="Progress" lead="What you have done and how your quiz scores are changing. This page updates about every 15 seconds while it is open." />
 
-      <section aria-labelledby="insights-title" className="glass-card p-5">
-        <h2 id="insights-title" className="font-display font-semibold text-white text-lg mb-2">Suggestions for you</h2>
-        <ul className="list-disc pl-5 text-slate-100 space-y-1">{insights.map((t) => <li key={t}>{t}</li>)}</ul>
-      </section>
+      {insights?.length > 0 && (
+        <section aria-labelledby="insights-title" className="mb-10 rounded-xl border border-line bg-surface p-5">
+          <h2 id="insights-title" className="section-title">Suggestions for you</h2>
+          <ul className="mt-2 list-disc space-y-1 pl-6 text-ink">{insights.map((t) => <li key={t}>{t}</li>)}</ul>
+        </section>
+      )}
 
-      <section aria-labelledby="engagement-title">
-        <h2 id="engagement-title" className="font-display font-semibold text-white text-lg mb-3">Engagement</h2>
-        <dl className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Days active" value={engagement.active_days} />
-          <Stat label="Lessons viewed" value={engagement.lessons_viewed} />
-          <Stat label="Pages visited" value={engagement.page_views} />
-          <Stat label="Learning score" value={progress.learning_score !== undefined ? `${progress.learning_score}%` : 'Not yet'} />
-        </dl>
-      </section>
-
-      <section aria-labelledby="quiz-title">
-        <h2 id="quiz-title" className="font-display font-semibold text-white text-lg mb-3">Quiz performance</h2>
-        {trend.length === 0 ? <p className="text-slate-300">No quiz attempts yet.</p> : (
-          <>
-            <div className="glass-card p-4 mb-3" aria-hidden="true" style={{ height: 240 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.15)" />
-                  <XAxis dataKey="attempt" stroke="#cbd5e1" label={{ value: 'Attempt', position: 'insideBottom', offset: -2, fill: '#cbd5e1' }} />
-                  <YAxis domain={[0, 100]} stroke="#cbd5e1" />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="avg_score" stroke="#2dd4bf" strokeWidth={3} dot={{ r: 5 }} />
-                </LineChart>
-              </ResponsiveContainer>
+      <section aria-labelledby="quiz-title" className="mb-12">
+        <h2 id="quiz-title" className="section-title">Quiz performance</h2>
+        {trend.length === 0 ? (
+          <p className="mt-3 text-muted">No quiz attempts yet. <Link to="/quiz">Take the quiz</Link> and your results will appear here.</p>
+        ) : (
+          <div className="mt-4 grid gap-8 lg:grid-cols-[1.2fr_1fr]">
+            <div>
+              {trend.length >= 2
+                ? <QuizTrendChart trend={trend} />
+                : <p className="rounded-lg border border-line bg-sunken p-4 text-sm text-muted">One attempt so far. A chart needs at least two attempts, so take a new quiz after some study to see how you are changing.</p>}
+              <p className="mt-2 text-sm text-muted">Each point is the average score across all topics in one quiz attempt, from 0% to 100%.</p>
             </div>
-            <table className="text-sm text-slate-100 w-full">
-              <caption className="text-left text-slate-300 mb-1">Quiz attempts (the same data as the chart)</caption>
-              <thead><tr><th scope="col" className="text-left py-1">Attempt</th><th scope="col" className="text-left">Date</th><th scope="col" className="text-left">Average score</th><th scope="col" className="text-left">Accessibility settings on</th></tr></thead>
-              <tbody>{trend.map((a) => (
-                <tr key={a.attempt}><th scope="row" className="text-left font-normal py-1">{a.attempt}</th><td>{a.date}</td><td>{a.avg_score}%</td><td>{a.personalised ? 'Yes' : 'No'}</td></tr>
-              ))}</tbody>
-            </table>
-          </>
+            <div className="overflow-x-auto">
+              <table className="table">
+                <caption className="mb-2 text-left text-sm text-muted">The same numbers as a table</caption>
+                <thead><tr><th scope="col">Attempt</th><th scope="col">Date</th><th scope="col">Average score</th><th scope="col">Settings on</th></tr></thead>
+                <tbody>{trend.map((a) => (
+                  <tr key={a.attempt}>
+                    <th scope="row">{a.attempt}</th>
+                    <td>{a.date}</td><td className="tabular-nums">{a.avg_score}%</td><td>{a.personalised ? 'Yes' : 'No'}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
         )}
       </section>
 
-      <section aria-labelledby="a11y-usage-title">
-        <h2 id="a11y-usage-title" className="font-display font-semibold text-white text-lg mb-3">How you use accessibility features</h2>
-        <p className="text-slate-100 mb-3">
+      <section aria-labelledby="engagement-title" className="mb-12">
+        <h2 id="engagement-title" className="section-title">Your activity</h2>
+        <dl className="mt-4 grid grid-cols-2 gap-8 md:grid-cols-4">
+          <Fact label="Days active" value={engagement.active_days} />
+          <Fact label="Lessons viewed" value={engagement.lessons_viewed} />
+          <Fact label="Pages visited" value={engagement.page_views} />
+          <Fact label="Learning score" value={progress.learning_score !== undefined ? `${progress.learning_score}%` : 'Not yet'} />
+        </dl>
+        <p className="mt-4 max-w-2xl text-sm text-muted">
+          The learning score combines your quiz average (60%), your progress along the path (30%), and small bonuses for finishing steps and taking more quiz attempts. It is capped at 100%.
+        </p>
+      </section>
+
+      <section aria-labelledby="a11y-usage-title" className="mb-12">
+        <h2 id="a11y-usage-title" className="section-title">How you use the accessibility features</h2>
+        <p className="mt-2 text-ink">
           Settings on now: {activeSettings.length ? activeSettings.join(', ') : 'none'}. Text size: {usage.current_settings.font_scale}%.
         </p>
-        <dl className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Times you used Listen" value={usage.text_to_speech_uses} />
-          <Stat label="Voice commands" value={usage.voice_commands_used} />
-          <Stat label="Keyboard shortcuts" value={usage.keyboard_shortcuts_used} />
-          <Stat label="Settings changes" value={Object.values(usage.setting_changes).reduce((a, b) => a + b, 0)} />
+        <dl className="mt-4 grid grid-cols-2 gap-8 md:grid-cols-4">
+          <Fact label="Times you used Listen" value={usage.text_to_speech_uses} />
+          <Fact label="Voice commands" value={usage.voice_commands_used} />
+          <Fact label="Keyboard shortcuts" value={usage.keyboard_shortcuts_used} />
+          <Fact label="Settings changes" value={changes} />
         </dl>
       </section>
 
-      <section aria-labelledby="effect-title" className="glass-card p-5">
-        <h2 id="effect-title" className="font-display font-semibold text-white text-lg mb-2">Does personalisation help you?</h2>
+      <section aria-labelledby="effect-title" className="rounded-xl border border-line bg-surface p-5">
+        <h2 id="effect-title" className="section-title">Do your settings help?</h2>
         {effect.status === 'available' ? (
-          <p className="text-slate-100">
-            With accessibility settings on your average quiz score was {effect.with_personalisation}%; without them it was {effect.without_personalisation}%
-            (difference {effect.difference > 0 ? '+' : ''}{effect.difference} points). {effect.note}
+          <p className="mt-2 text-ink">
+            With accessibility settings on, your average quiz score was {effect.with_personalisation}%. Without them it was {effect.without_personalisation}%
+            (a difference of {effect.difference > 0 ? '+' : ''}{effect.difference} points). {effect.note}
           </p>
-        ) : <p className="text-slate-100">{effect.note}</p>}
+        ) : <p className="mt-2 text-ink">{effect.note}</p>}
       </section>
     </div>
   );

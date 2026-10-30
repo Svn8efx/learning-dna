@@ -7,14 +7,18 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0b1a1c" />
+    <meta name="theme-color" content="#F7F6F2" />
     <meta name="description" content="Learning DNA: AI-powered personalized learning for students with disabilities" />
     <title>Learning DNA</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <script>
+      // Apply the saved theme before the first paint so the page never flashes the wrong colours. Light is the default.
+      try { document.documentElement.dataset.theme = localStorage.getItem('ldna-theme') === 'dark' ? 'dark' : 'light'; } catch (e) { document.documentElement.dataset.theme = 'light'; }
+    </script>
   </head>
-  <body class="bg-dark-300">
+  <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
   </body>

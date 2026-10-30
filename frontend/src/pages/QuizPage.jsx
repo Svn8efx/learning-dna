@@ -1,19 +1,22 @@
-
-import LoadingScreen from '../components/LoadingScreen';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Brain, ChevronLeft, ChevronRight, CheckCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, RefreshCcw } from 'lucide-react';
+import LoadingScreen from '../components/LoadingScreen';
 import { useFlaskData } from '../hooks/useFlaskData';
 import { apiFetch } from '../utils/api';
+import { PageHeader, Notice, Meter, EmptyState } from '../components/ui';
+
+const DIFFICULTY = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
 
 export default function QuizPage() {
   const navigate = useNavigate();
-  const { quizItems, savePartial, refresh } = useFlaskData();
+  const { quizItems, savePartial, refresh, profile, loaded } = useFlaskData();
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const questionRef = useRef(null);
 
   const loadQuiz = async (forceNew = false) => {
     setLoading(true);
@@ -24,28 +27,34 @@ export default function QuizPage() {
       setAnswers({});
       setCurrentQ(0);
     } catch (err) {
-      setError(err.message || 'Unable to load quiz.');
+      setError(err.message || 'Unable to load the quiz.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Only ask for a quiz when there is a plan to build it from
+  const hasPlan = Boolean(profile?.topics?.length);
   useEffect(() => {
-    if (!quizItems?.length) loadQuiz(false);
-  }, []);
+    if (loaded && hasPlan && !quizItems?.length) loadQuiz(false);
+  }, [loaded, hasPlan]);
 
   const total = quizItems?.length || 0;
-  const progress = total ? (Object.keys(answers).length / total) * 100 : 0;
+  const answered = Object.keys(answers).length;
+  const answeredAll = total > 0 && answered === total;
   const item = quizItems?.[currentQ];
-  const key = item ? `${item.topic}_${item.index}` : '';
+  const qKey = item ? `${item.topic}_${item.index}` : '';
 
-  const difficultyConfig = {
-    beginner: { label: 'Beginner', color: '#4ade80', pct: 30 },
-    intermediate: { label: 'Intermediate', color: '#fbbf24', pct: 60 },
-    advanced: { label: 'Advanced', color: '#f87171', pct: 90 },
+  // Move keyboard and screen-reader focus to the new question when it changes
+  const goTo = (index) => {
+    setCurrentQ(index);
+    setTimeout(() => questionRef.current?.focus(), 0);
   };
 
-  const answeredAll = total > 0 && Object.keys(answers).length === total;
+  const newQuiz = () => {
+    if (answered > 0 && !window.confirm('Make a new quiz? The answers you have given so far will be cleared.')) return;
+    loadQuiz(true);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,120 +72,115 @@ export default function QuizPage() {
       navigate('/dashboard');
     } catch (err) {
       setSubmitted(false);
-      setError(err.message || 'Quiz submission failed.');
+      setError(err.message || 'Quiz submission failed. Your answers are still here, so you can try again.');
     }
   };
 
-  if (loading && !total) {
-    return <LoadingScreen label="Preparing your quiz" />;
-  }
+  if (!loaded || (loading && !total)) return <LoadingScreen label="Preparing your quiz" />;
 
   if (!total) {
     return (
-      <div className="px-6 py-8 max-w-2xl mx-auto">
-        <div className="glass-card p-8 text-center space-y-4">
-          <div className="text-white text-lg font-display">No quiz generated yet</div>
-          <div className="text-slate-500 text-sm">Start with your syllabus first.</div>
-          {error && <div className="text-red-400 text-sm">{error}</div>}
-          <button onClick={() => navigate('/start')} className="btn-cyber-solid">Go to Start</button>
-        </div>
+      <div className="page-narrow">
+        <PageHeader title="Quiz" />
+        {error && <Notice tone="danger" className="mb-4" title="Could not load the quiz">{error}</Notice>}
+        <EmptyState title="There is no quiz yet" action={<button type="button" onClick={() => navigate('/start')} className="btn btn-primary">Build your plan</button>}>
+          The quiz is made from the topics in your study plan, so build your plan first.
+        </EmptyState>
       </div>
     );
   }
 
   if (submitted) {
     return (
-      <div className="px-6 py-8 max-w-2xl mx-auto text-center">
-        <div className="glass-card p-10">
-          <div className="w-20 h-20 rounded-full bg-green-400/10 border border-green-400/30 flex items-center justify-center mx-auto mb-6">
-            <CheckCircle size={36} className="text-green-400" />
-          </div>
-          <h2 className="font-display font-bold text-2xl text-white mb-3">Quiz Submitted!</h2>
-          <p className="text-slate-400 mb-6">Opening your personalized dashboard...</p>
+      <div className="page-narrow">
+        <div className="panel panel-pad text-center" role="status">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success-soft text-success"><Check size={24} aria-hidden="true" /></span>
+          <h1 className="mt-4 text-xl font-semibold">Quiz submitted</h1>
+          <p className="mt-1 text-muted">Opening your dashboard with the results.</p>
         </div>
       </div>
     );
   }
 
-  const diff = difficultyConfig[item?.difficulty || 'beginner'];
-
   return (
-    <div className="px-6 py-8 max-w-3xl mx-auto">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-slate-400 text-xs font-mono mb-4">STEP 3 OF 4 · KNOWLEDGE ASSESSMENT</div>
-          <h1 className="font-display font-bold text-2xl text-white">Adaptive Knowledge Quiz</h1>
-          <p className="text-slate-400 text-sm mt-1">Unique questions are generated from your selected syllabus topics.</p>
-        </div>
-        <button type="button" onClick={() => loadQuiz(true)} className="btn-cyber flex items-center gap-2">
-          <RefreshCcw size={14} /> New Quiz
-        </button>
-      </div>
+    <div className="page-narrow">
+      <PageHeader
+        eyebrow="Step 3 of 3"
+        title="Knowledge quiz"
+        lead="Questions come from the topics in your plan. Answer all of them, then submit to see your results by topic."
+        actions={<button type="button" onClick={newQuiz} className="btn btn-secondary btn-sm"><RefreshCcw size={14} aria-hidden="true" /> New quiz</button>}
+      />
 
-      <div className="glass-card p-4 mb-6 flex items-center gap-6">
-        <div className="flex-1">
-          <div className="flex items-center justify-between text-xs mb-2">
-            <span className="text-slate-400">Overall Progress</span>
-            <span className="text-teal-400 font-mono font-medium">{Object.keys(answers).length}/{total}</span>
-          </div>
-          <div className="difficulty-track"><div className="difficulty-fill bg-gradient-to-r from-teal-400 to-teal-500" style={{ width: `${progress}%` }} /></div>
+      <div className="mb-6">
+        <div className="mb-2 flex items-baseline justify-between text-sm">
+          <span className="font-medium text-ink">Question {currentQ + 1} of {total}</span>
+          <span className="text-muted">{answered} of {total} answered</span>
         </div>
-        <div className="text-center"><div className="font-display font-bold text-white text-2xl">{currentQ + 1}</div><div className="text-slate-500 text-xs">of {total}</div></div>
-        <div className="flex items-center gap-1.5 text-slate-400 text-xs"><Clock size={12} /><span>~{Math.ceil(total * 1.5)} min</span></div>
+        <Meter value={(answered / total) * 100} label={`${answered} of ${total} questions answered`} />
       </div>
 
       <form onSubmit={handleSubmit}>
-        {quizItems.map((q, idx) => {
-          const qKey = `${q.topic}_${q.index}`;
-          return (
-            <div key={qKey} style={{ display: idx === currentQ ? 'block' : 'none' }}>
-              <div className="glass-card p-6 mb-4">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="px-3 py-1 rounded-full bg-teal-400/10 border border-teal-400/20 text-teal-400 text-xs font-semibold font-mono uppercase tracking-wider">{q.topic}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500">Difficulty</span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-20 difficulty-track"><div className="difficulty-fill" style={{ width: `${difficultyConfig[q.difficulty || 'beginner'].pct}%`, background: difficultyConfig[q.difficulty || 'beginner'].color }} /></div>
-                      <span className="text-xs font-medium" style={{ color: difficultyConfig[q.difficulty || 'beginner'].color }}>{difficultyConfig[q.difficulty || 'beginner'].label}</span>
-                    </div>
-                  </div>
+        <fieldset className="panel panel-pad">
+          <legend className="sr-only">Question {currentQ + 1} of {total}</legend>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
+            <span className="badge badge-neutral capitalize">{item.topic}</span>
+            <span>{DIFFICULTY[item.difficulty || 'beginner']} level</span>
+          </div>
+          <h2 ref={questionRef} tabIndex={-1} className="mt-3 text-xl font-semibold leading-snug outline-none">{item.q}</h2>
+
+          <div className="mt-5 space-y-3" role="radiogroup" aria-label={item.q}>
+            {item.options.map((opt, oi) => {
+              const id = `${qKey}_${oi}`;
+              const checked = answers[qKey] === opt;
+              return (
+                <div key={id} className="flex">
+                  <input type="radio" name={qKey} id={id} value={opt} className="choice-input" checked={checked} onChange={() => setAnswers((a) => ({ ...a, [qKey]: opt }))} />
+                  <label htmlFor={id} className="choice w-full items-start" data-selected={checked}>
+                    <span className="choice-mark" aria-hidden="true">{checked && <Check size={12} strokeWidth={3} />}</span>
+                    <span className="text-[1.0625rem]"><span className="mr-2 font-mono text-sm text-muted">{String.fromCharCode(65 + oi)}</span>{opt}</span>
+                  </label>
                 </div>
+              );
+            })}
+          </div>
+        </fieldset>
 
-                <div className="flex gap-3 mb-5">
-                  <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0 font-mono text-sm font-bold text-white">{idx + 1}</div>
-                  <h2 id={`${qKey}_label`} className="font-display font-semibold text-white text-lg leading-snug">{q.q}</h2>
-                </div>
+        {error && <Notice tone="danger" className="mt-4" title="Something went wrong">{error}</Notice>}
 
-                <div className="space-y-3" role="radiogroup" aria-labelledby={`${qKey}_label`}>
-                  {q.options.map((opt, oi) => (
-                    <div key={oi} className="quiz-option">
-                      <input type="radio" name={qKey} value={opt} id={`${qKey}_${oi}`} checked={answers[qKey] === opt} onChange={() => setAnswers(a => ({ ...a, [qKey]: opt }))} />
-                      <label htmlFor={`${qKey}_${oi}`}>
-                        <div className="radio-dot">{answers[qKey] === opt && <div className="w-2 h-2 rounded-full bg-dark-300" />}</div>
-                        <span className="font-mono text-xs text-slate-500 mr-1">{String.fromCharCode(65 + oi)}.</span>
-                        {opt}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {error && <div className="mb-3 text-red-400 text-sm">{error}</div>}
-
-        <div className="flex items-center justify-between">
-          <button type="button" onClick={() => setCurrentQ(q => Math.max(0, q - 1))} disabled={currentQ === 0} className="btn-cyber flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft size={16} />Previous</button>
-          <div className="flex gap-1.5">{quizItems.map((q, i) => <button key={i} type="button" aria-label={`Go to question ${i + 1}`} aria-current={i === currentQ ? 'step' : undefined} onClick={() => setCurrentQ(i)} className={`w-2 h-2 rounded-full transition-all ${i === currentQ ? 'w-6 bg-teal-400' : answers[`${q.topic}_${q.index}`] ? 'bg-green-400/70' : 'bg-white/20'}`} />)}</div>
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <button type="button" onClick={() => goTo(Math.max(0, currentQ - 1))} disabled={currentQ === 0} className="btn btn-secondary">
+            <ArrowLeft size={16} aria-hidden="true" /> Previous
+          </button>
           {currentQ < total - 1 ? (
-            <button type="button" onClick={() => setCurrentQ(q => q + 1)} className="btn-cyber flex items-center gap-2">Next<ChevronRight size={16} /></button>
+            <button type="button" onClick={() => goTo(currentQ + 1)} className="btn btn-primary">Next <ArrowRight size={16} aria-hidden="true" /></button>
           ) : (
-            <button type="submit" disabled={!answeredAll} className={`btn-cyber-solid flex items-center gap-2 ${!answeredAll ? 'opacity-50 cursor-not-allowed' : ''}`}><Brain size={15} />Submit Quiz</button>
+            <button type="submit" disabled={!answeredAll} className="btn btn-primary">Submit quiz</button>
           )}
         </div>
+        {currentQ === total - 1 && !answeredAll && (
+          <p className="mt-3 text-right text-sm text-warning" role="status">{total - answered} question{total - answered === 1 ? '' : 's'} still unanswered. Answer all to submit.</p>
+        )}
 
-        {!answeredAll && currentQ === total - 1 && <div className="mt-3 flex items-center gap-2 text-yellow-400 text-xs justify-center"><AlertCircle size={12} /><span>{total - Object.keys(answers).length} question(s) unanswered. Please answer all to submit.</span></div>}
+        <nav aria-label="Jump to a question" className="mt-8 border-t border-line pt-5">
+          <p className="mb-2 text-sm font-medium text-ink">All questions</p>
+          <ul className="flex flex-wrap gap-2">
+            {quizItems.map((q, i) => {
+              const done = Boolean(answers[`${q.topic}_${q.index}`]);
+              return (
+                <li key={i}>
+                  <button
+                    type="button" onClick={() => goTo(i)} aria-current={i === currentQ ? 'step' : undefined}
+                    aria-label={`Question ${i + 1}, ${done ? 'answered' : 'not answered'}`}
+                    className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border text-sm font-medium ${
+                      i === currentQ ? 'border-accent bg-accent text-accent-ink' : done ? 'border-success bg-success-soft text-success' : 'border-line-strong bg-surface text-ink hover:bg-sunken'}`}
+                  >
+                    {done && i !== currentQ ? <Check size={16} aria-hidden="true" /> : i + 1}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
       </form>
     </div>
   );

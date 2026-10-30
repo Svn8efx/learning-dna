@@ -1,17 +1,20 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Dna, Search, Bell, Github, Accessibility, Volume2, KeyRound } from 'lucide-react';
+import { Dna, Search, Bell, Github, Accessibility, Volume2, VolumeX, KeyRound, Sun, Moon, Menu, X, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
 import AccessibilityPanel from './AccessibilityPanel';
 import LogoutButton from './LogoutButton';
 
-// Dashboard first, then set-up steps, then learning, then tracking.
-const NAV = [
-  ['/dashboard', 'Dashboard'], ['/my-dna', 'My DNA'], ['/goals', 'Goals'], ['/start', 'Start'],
-  ['/quiz', 'Quiz'], ['/path', 'Path'], ['/lessons', 'Lessons'], ['/resources', 'Resources'],
-  ['/tutor', 'Tutor'], ['/progress', 'Progress'],
+const REPO_URL = 'https://github.com/Svn8efx/learning-dna';
+
+// Grouped by what the student is doing: look, set up, learn, track.
+const NAV_GROUPS = [
+  { label: 'Overview', items: [['/dashboard', 'Dashboard']] },
+  { label: 'Set up', items: [['/my-dna', 'My DNA'], ['/goals', 'Goals'], ['/start', 'Start']] },
+  { label: 'Learn', items: [['/quiz', 'Quiz'], ['/path', 'Path'], ['/lessons', 'Lessons'], ['/resources', 'Resources'], ['/tutor', 'Tutor']] },
+  { label: 'Track', items: [['/progress', 'Progress']] },
 ];
 
 const PAGE_TITLES = {
@@ -25,18 +28,24 @@ const SHORTCUT_TARGETS = {
   l: '/lessons', m: '/my-dna', o: '/progress',
 };
 
+const iconBtn = 'btn btn-ghost btn-icon relative';
+
 export default function Layout() {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
+  const [searched, setSearched] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [showSearch, setShowSearch] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [drawer, setDrawer] = useState(null);            // null | 'search' | 'notifications'
+  const [menuOpen, setMenuOpen] = useState(false);       // small-screen navigation
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);     // accessibility settings dialog
   const [lastHeard, setLastHeard] = useState('');
+  const [theme, setTheme] = useState(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'));
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef(null);
   const settingsButtonRef = useRef(null);
+  const accountRef = useRef(null);
   const firstRender = useRef(true);
   const { prefs, updatePrefs, speak, stopSpeaking, speaking, speechSupported, announce, logEvent } = useAccessibility();
 
@@ -50,11 +59,40 @@ export default function Layout() {
   useEffect(() => {
     const base = PAGE_TITLES[location.pathname] || (location.pathname.startsWith('/lesson/') ? 'Lesson' : 'Learning DNA');
     document.title = `${base} - Learning DNA`;
+    setMenuOpen(false);
+    setAccountOpen(false);
+    setDrawer(null);
     if (firstRender.current) { firstRender.current = false; return; }
     announce(`${base} page`);
     mainRef.current?.focus({ preventScroll: false });
     logEvent('page_view', location.pathname);
   }, [location.pathname, announce, logEvent]);
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('ldna-theme', next); } catch { /* private mode: the choice just will not persist */ }
+    setTheme(next);
+    announce(`${next === 'dark' ? 'Dark' : 'Light'} theme`);
+  };
+
+  // Close the account menu on outside click or Escape
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    const onDown = (e) => { if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') { setAccountOpen(false); accountRef.current?.querySelector('button')?.focus(); } };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [accountOpen]);
+
+  // Escape closes the search or notifications panel, or the small-screen menu
+  useEffect(() => {
+    if (!drawer && !menuOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') { setDrawer(null); setMenuOpen(false); } };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawer, menuOpen]);
 
   const readPage = useCallback(() => {
     const text = mainRef.current?.innerText || '';
@@ -67,6 +105,11 @@ export default function Layout() {
     updatePrefs({ font_scale: next });
     announce(`Text size ${next} percent`);
   }, [prefs.font_scale, updatePrefs, announce]);
+
+  const closePanel = useCallback(() => {
+    setPanelOpen(false);
+    setTimeout(() => settingsButtonRef.current?.focus(), 0);
+  }, []);
 
   const { listening, error: voiceError, retry: retryVoice } = useVoiceCommands(prefs.voice_commands, {
     navigate: (to) => { logEvent('voice_command', to); navigate(to); },
@@ -99,101 +142,194 @@ export default function Layout() {
     return () => document.removeEventListener('keydown', onKey);
   }, [prefs.keyboard_mode, navigate, readPage, speaking, stopSpeaking, logEvent]);
 
-  const closePanel = useCallback(() => {
-    setPanelOpen(false);
-    setTimeout(() => settingsButtonRef.current?.focus(), 0);
-  }, []);
-
   const runSearch = async (e) => {
     e?.preventDefault?.();
-    if (!search.trim()) {
-      setResults([]);
-      setShowSearch(true);
-      return;
-    }
+    if (!search.trim()) { setResults([]); setSearched(false); return; }
     try {
       const data = await apiFetch(`/api/search?q=${encodeURIComponent(search)}`);
       setResults(data.results || []);
     } catch {
       setResults([]);
     }
-    setShowSearch(true);
+    setSearched(true);
   };
 
+  const navLinkClass = ({ isActive }) =>
+    `-mb-px inline-flex h-11 items-center border-b-2 px-3 text-sm font-medium no-underline transition-colors ${
+      isActive ? 'border-accent text-accent' : 'border-transparent text-muted hover:text-ink'}`;
+  const mobileLinkClass = ({ isActive }) =>
+    `block rounded-lg px-3 py-2.5 text-base font-medium no-underline ${isActive ? 'bg-accent-soft text-accent' : 'text-ink hover:bg-sunken'}`;
+
   return (
-    <div className="min-h-screen flex flex-col text-white">
+    <div className="flex min-h-screen flex-col">
       <a href="#main-content" className="skip-link" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
         Skip to main content
       </a>
 
-      <header className="sticky top-0 z-40 backdrop-blur-xl border-b border-white/10 bg-slate-950/70">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-          <Link to="/" className="flex items-center gap-3 font-display font-bold text-lg"><Dna className="text-teal-400" size={22} />Learning DNA</Link>
-          <nav aria-label="Main" className="flex flex-wrap items-stretch gap-1 text-sm order-3 w-full">
-            {NAV.map(([to, label]) => (
-              <NavLink
-                key={to} to={to}
-                className={({ isActive }) => `flex-1 min-w-[5.5rem] text-center px-3 py-2.5 rounded-lg font-medium transition-colors ${isActive ? 'bg-teal-400/15 text-teal-300' : 'text-slate-200 hover:bg-white/10 hover:text-white'}`}
-              >
-                {label}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <form onSubmit={runSearch} role="search" className="hidden md:flex items-center gap-2">
-              <label htmlFor="site-search" className="sr-only">Search resources</label>
-              <input id="site-search" className="cyber-input" style={{ minWidth: 200 }} value={search} onChange={e => setSearch(e.target.value)} placeholder="Search resources" />
-              <button className="btn-cyber" type="submit" aria-label="Search"><Search size={14} /></button>
-            </form>
+      <header className="sticky top-0 z-40 border-b border-line bg-surface">
+        {/* Row 1: brand and utility actions */}
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="mr-2 flex min-h-[2.5rem] items-center gap-2 text-base font-semibold text-ink no-underline">
+            <Dna size={22} className="text-accent" aria-hidden="true" /> Learning DNA
+          </Link>
+
+          <div className="ml-auto flex items-center gap-1">
+            <button type="button" className={iconBtn} aria-label="Search resources" aria-expanded={drawer === 'search'} onClick={() => setDrawer(drawer === 'search' ? null : 'search')}>
+              <Search size={18} aria-hidden="true" />
+            </button>
             {speechSupported && prefs.text_to_speech && (
-              <button type="button" className="btn-cyber flex items-center gap-1" onClick={speaking ? stopSpeaking : readPage}>
-                <Volume2 size={14} /> {speaking ? 'Stop' : 'Listen'}
+              <button type="button" className="btn btn-ghost btn-sm hidden sm:inline-flex" onClick={speaking ? stopSpeaking : readPage}>
+                {speaking ? <VolumeX size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />} {speaking ? 'Stop' : 'Listen'}
               </button>
             )}
-            <button ref={settingsButtonRef} type="button" className="btn-cyber flex items-center gap-1" onClick={() => setPanelOpen(true)} aria-haspopup="dialog">
-              <Accessibility size={14} /> Accessibility
+            <button ref={settingsButtonRef} type="button" className="btn btn-secondary btn-sm" onClick={() => setPanelOpen(true)} aria-haspopup="dialog">
+              <Accessibility size={16} aria-hidden="true" /> <span className="hidden sm:inline">Accessibility</span><span className="sr-only sm:hidden">Accessibility settings</span>
             </button>
-            <Link to="/my-code" className="btn-cyber flex items-center gap-1"><KeyRound size={14} aria-hidden="true" /> My code</Link>
-            <LogoutButton />
-            <button type="button" className="btn-cyber" aria-label="Notifications" aria-expanded={showNotifications} onClick={() => setShowNotifications(s => !s)}><Bell size={14} /></button>
-            <a className="btn-cyber" href="https://github.com/Svn8efx/learning-dna" target="_blank" rel="noopener noreferrer" aria-label="Learning DNA source code on GitHub (opens in a new tab)"><Github size={14} aria-hidden="true" /></a>
+
+            <div className="hidden items-center gap-1 min-[1000px]:flex">
+              <button type="button" className={iconBtn} aria-label={notifications.length ? `Notifications, ${notifications.length}` : 'Notifications'} aria-expanded={drawer === 'notifications'} onClick={() => setDrawer(drawer === 'notifications' ? null : 'notifications')}>
+                <Bell size={18} aria-hidden="true" />
+                {notifications.length > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-ink" aria-hidden="true">{notifications.length}</span>}
+              </button>
+              <button type="button" className={iconBtn} onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+                {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+              </button>
+              <a className={iconBtn} href={REPO_URL} target="_blank" rel="noopener noreferrer" aria-label="Source code on GitHub (opens in a new tab)">
+                <Github size={18} aria-hidden="true" />
+              </a>
+              <div className="relative" ref={accountRef}>
+                <button type="button" className="btn btn-ghost btn-sm" aria-expanded={accountOpen} aria-controls="account-menu" onClick={() => setAccountOpen(o => !o)}>
+                  <KeyRound size={16} aria-hidden="true" /> Account <ChevronDown size={14} aria-hidden="true" />
+                </button>
+                {accountOpen && (
+                  <div id="account-menu" className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-line bg-surface p-1.5 shadow-lg">
+                    <Link to="/my-code" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink no-underline hover:bg-sunken">
+                      <KeyRound size={16} aria-hidden="true" /> My code
+                    </Link>
+                    <LogoutButton className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sunken" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <button type="button" className="btn btn-secondary btn-sm min-[1000px]:hidden" aria-expanded={menuOpen} aria-controls="mobile-menu" onClick={() => setMenuOpen(o => !o)}>
+              {menuOpen ? <X size={16} aria-hidden="true" /> : <Menu size={16} aria-hidden="true" />} Menu
+            </button>
           </div>
         </div>
+
+        {/* Row 2: primary navigation (wide screens) */}
+        <div className="hidden border-t border-line min-[1000px]:block">
+          <nav aria-label="Main" className="mx-auto flex max-w-6xl items-center px-4 sm:px-6 lg:px-8">
+            {NAV_GROUPS.map((group, gi) => (
+              <React.Fragment key={group.label}>
+                {gi > 0 && <span aria-hidden="true" className="mx-2 h-5 w-px bg-line" />}
+                {group.items.map(([to, label]) => <NavLink key={to} to={to} className={navLinkClass}>{label}</NavLink>)}
+              </React.Fragment>
+            ))}
+          </nav>
+        </div>
+
+        {/* Small screens: grouped menu */}
+        {menuOpen && (
+          <div id="mobile-menu" className="max-h-[75vh] overflow-y-auto border-t border-line px-4 pb-4 pt-2 min-[1000px]:hidden">
+            <nav aria-label="Main">
+              {NAV_GROUPS.map((group) => (
+                <div key={group.label} className="py-2">
+                  <p className="eyebrow px-3 pb-1">{group.label}</p>
+                  {group.items.map(([to, label]) => <NavLink key={to} to={to} className={mobileLinkClass}>{label}</NavLink>)}
+                </div>
+              ))}
+            </nav>
+            <div className="divider mt-2 pt-3">
+              <p className="eyebrow px-3 pb-1">Tools</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDrawer('notifications'); setMenuOpen(false); }}>
+                  <Bell size={16} aria-hidden="true" /> Notifications{notifications.length ? ` (${notifications.length})` : ''}
+                </button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={toggleTheme}>
+                  {theme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />} {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+                </button>
+                <Link to="/my-code" className="btn btn-secondary btn-sm"><KeyRound size={16} aria-hidden="true" /> My code</Link>
+                <LogoutButton className="btn btn-secondary btn-sm" />
+                {speechSupported && prefs.text_to_speech && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={speaking ? stopSpeaking : readPage}>
+                    {speaking ? <VolumeX size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />} {speaking ? 'Stop' : 'Listen'}
+                  </button>
+                )}
+                <a className="btn btn-secondary btn-sm" href={REPO_URL} target="_blank" rel="noopener noreferrer"><Github size={16} aria-hidden="true" /> GitHub <span className="sr-only">(opens in a new tab)</span></a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Search and notifications open as a panel under the header */}
+        {drawer === 'search' && (
+          <div className="border-t border-line bg-sunken">
+            <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+              <form onSubmit={runSearch} role="search" className="flex gap-2">
+                <label htmlFor="site-search" className="sr-only">Search resources</label>
+                <input id="site-search" className="input" autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search videos, courses and datasets" />
+                <button className="btn btn-primary" type="submit">Search</button>
+                <button className="btn btn-ghost btn-icon" type="button" onClick={() => setDrawer(null)} aria-label="Close search"><X size={18} aria-hidden="true" /></button>
+              </form>
+              {searched && (
+                <section aria-label="Search results" className="mt-3">
+                  {results.length ? (
+                    <ul className="grid gap-2 sm:grid-cols-2">
+                      {results.map((r, i) => (
+                        <li key={i}>
+                          <a href={r.url} target="_blank" rel="noreferrer" className="block rounded-lg border border-line bg-surface p-3 no-underline hover:border-line-strong">
+                            <span className="eyebrow">{r.kind} · {r.topic}</span>
+                            <span className="mt-1 block text-sm font-medium text-ink">{r.title} <span className="sr-only">(opens in a new tab)</span></span>
+                            <span className="block text-xs text-muted">{r.provider}</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-sm text-muted">No results found.</p>}
+                </section>
+              )}
+            </div>
+          </div>
+        )}
+
+        {drawer === 'notifications' && (
+          <div className="border-t border-line bg-sunken">
+            <section aria-label="Notifications" className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold">Notifications</h2>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDrawer(null)}>Close</button>
+              </div>
+              {notifications.length ? (
+                <ul className="mt-2 space-y-2">
+                  {notifications.map((n, i) => <li key={i} className="text-sm"><span className="font-medium">{n.title}:</span> <span className="text-muted">{n.message}</span></li>)}
+                </ul>
+              ) : <p className="mt-2 text-sm text-muted">No notifications yet.</p>}
+            </section>
+          </div>
+        )}
+
         {prefs.voice_commands && lastHeard && (
-          <div className="max-w-7xl mx-auto px-6 pb-2 text-xs text-slate-300" role="status">{listening ? 'Listening. ' : ''}{lastHeard}</div>
+          <div className="border-t border-line bg-sunken" role="status">
+            <p className="mx-auto max-w-6xl px-4 py-1.5 text-sm text-muted sm:px-6 lg:px-8">{listening ? 'Listening. ' : ''}{lastHeard}</p>
+          </div>
         )}
       </header>
 
       <AccessibilityPanel open={panelOpen} onClose={closePanel} onReadPage={readPage} voiceListening={listening} voiceError={voiceError} onVoiceRetry={retryVoice} />
 
-      {showNotifications && (
-        <div className="w-full max-w-7xl mx-auto px-6 pt-4">
-          <section aria-label="Notifications" className="glass-card p-4 space-y-2">
-            <h2 className="font-display font-semibold text-white text-sm">Notifications</h2>
-            {notifications.length ? notifications.map((n, i) => <div key={i} className="text-slate-300 text-sm"><span className="text-teal-400 font-medium">{n.title}:</span> {n.message}</div>) : <div className="text-slate-400 text-sm">No notifications yet.</div>}
-          </section>
+      <main id="main-content" ref={mainRef} tabIndex={-1} className="flex-1 outline-none"><Outlet /></main>
+
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted sm:px-6 lg:px-8">
+          <p>Learning DNA is a community-service project of K.R. Mangalam University.</p>
+          <p className="flex items-center gap-4">
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted underline hover:text-ink">
+              <Github size={14} aria-hidden="true" /> Source code <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          </p>
         </div>
-      )}
-
-      {showSearch && (
-        <div className="w-full max-w-7xl mx-auto px-6 pt-4">
-          <section aria-label="Search results" className="glass-card p-4 space-y-3">
-            <h2 className="font-display font-semibold text-white text-sm">Search Results</h2>
-            {results.length ? results.map((r, i) => (
-              <a key={i} href={r.url} target="_blank" rel="noreferrer" className="block p-3 rounded-xl bg-white/5 hover:bg-white/10 transition">
-                <div className="text-teal-400 text-xs uppercase">{r.kind} · {r.topic}</div>
-                <div className="text-white text-sm">{r.title} <span className="sr-only">(opens in a new tab)</span></div>
-                <div className="text-slate-400 text-xs">{r.provider}</div>
-              </a>
-            )) : <div className="text-slate-400 text-sm">No results found.</div>}
-          </section>
-        </div>
-      )}
-
-      <main id="main-content" ref={mainRef} tabIndex={-1} className="outline-none flex-1"><Outlet /></main>
-
-      <footer className="w-full max-w-7xl mx-auto px-6 py-8 text-xs text-slate-400">
-        Learning DNA - a community-service project of K.R. Mangalam University.
       </footer>
     </div>
   );

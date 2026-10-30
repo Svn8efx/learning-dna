@@ -7,6 +7,9 @@ import { AccessibilityProvider } from './context/AccessibilityContext';
 import MyDnaPage from './pages/MyDnaPage';
 import ProgressPage from './pages/ProgressPage';
 import LessonPage from './pages/LessonPage';
+import DashboardPage from './pages/DashboardPage';
+import LearningPathPage from './pages/LearningPathPage';
+import Layout from './components/Layout';
 
 const SUMMARY = {
   engagement: { total_events: 3, active_days: 1, last_active: '2026-10-22', lessons_viewed: 1, page_views: 2 },
@@ -67,7 +70,7 @@ test('My Learning DNA form uses fieldsets and legends', async () => {
 
 test('Progress page shows chart data as a table', async () => {
   const c = await mount(<AccessibilityProvider><MemoryRouter><ProgressPage /></MemoryRouter></AccessibilityProvider>);
-  expect(c.querySelector('table caption').textContent).toMatch(/Quiz attempts/);
+  expect(c.querySelector('table caption').textContent).toMatch(/same numbers as a table/i);
   expect(c.textContent).toMatch(/42%/);
 });
 
@@ -117,4 +120,74 @@ test('loading screen is announced and explains slow first loads', async () => {
   expect(c.textContent).not.toContain('waking up');
   await act(async () => { await new Promise((r) => setTimeout(r, 120)); });
   expect(c.textContent).toContain('waking up');
+});
+
+
+// ---- Redesign: honest states, structure and navigation --------------------------------------
+
+const withContext = (ctx) => {
+  const base = global.fetch;
+  global.fetch = jest.fn((url, opts) => {
+    if (url.includes('/api/context')) {
+      return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ ok: true, ...ctx })) });
+    }
+    return base(url, opts);
+  });
+};
+
+const PLAN = {
+  profile: { topics: ['python', 'classification', 'neural networks'], target_goal: 'Learn ML', activity: { quiz_attempts: 1 } },
+  learningPath: [
+    { topic: 'python', order: 1, status: 'completed', level: 'beginner', prerequisites: [] },
+    { topic: 'classification', order: 2, status: 'recommended', level: 'beginner', prerequisites: ['python'] },
+    { topic: 'neural networks', order: 3, status: 'locked', level: 'beginner', prerequisites: ['python', 'classification'] },
+  ],
+};
+
+test('dashboard without a plan sends the learner to build one and shows no invented numbers', async () => {
+  sessionStorage.clear();
+  withContext({ profile: {}, assessment: [], learningPath: [], resources: [] });
+  const c = await mount(<AccessibilityProvider><MemoryRouter><DashboardPage /></MemoryRouter></AccessibilityProvider>);
+  expect(c.textContent).toMatch(/Build your study plan/);
+  expect(c.textContent).not.toMatch(/\+12%|Keep Practicing|Great job/);
+  expect(c.textContent).toMatch(/What you will see here/);
+  expect(c.textContent).not.toMatch(/Quiz attempts|Average quiz score|Topics completed/);
+});
+
+test('dashboard with results shows a real table with a text result for every topic', async () => {
+  sessionStorage.clear();
+  withContext({ ...PLAN, assessment: [{ topic: 'python', score_pct: 90, correct: 9, total: 10 }, { topic: 'classification', score_pct: 30, correct: 3, total: 10 }], avgScore: 60 });
+  const c = await mount(<AccessibilityProvider><MemoryRouter><DashboardPage /></MemoryRouter></AccessibilityProvider>);
+  const rows = c.querySelectorAll('tbody tr');
+  expect(rows.length).toBeGreaterThanOrEqual(2);
+  expect(c.textContent).toMatch(/Strong/);
+  expect(c.textContent).toMatch(/Needs review/);
+  expect(c.textContent).toMatch(/Topics completed/);
+});
+
+test('learning path is an ordered list with status text and real prerequisites', async () => {
+  sessionStorage.clear();
+  withContext({ ...PLAN, assessment: [] });
+  const c = await mount(<AccessibilityProvider><MemoryRouter><LearningPathPage /></MemoryRouter></AccessibilityProvider>);
+  const items = c.querySelectorAll('ol.timeline > li');
+  expect(items.length).toBe(3);
+  expect(c.textContent).toMatch(/Completed/);
+  expect(c.textContent).toMatch(/Locked/);
+  expect(c.textContent).toMatch(/Needs: python, classification/);
+});
+
+test('layout groups the navigation, keeps every route, and the theme toggle works', async () => {
+  const c = await mount(
+    <AccessibilityProvider><MemoryRouter initialEntries={['/dashboard']}>
+      <Routes><Route element={<Layout />}><Route path="dashboard" element={<p>x</p>} /></Route></Routes>
+    </MemoryRouter></AccessibilityProvider>
+  );
+  const hrefs = Array.from(c.querySelectorAll('nav[aria-label="Main"] a')).map((a) => a.getAttribute('href'));
+  ['/dashboard', '/my-dna', '/goals', '/start', '/quiz', '/path', '/lessons', '/resources', '/tutor', '/progress'].forEach((h) => expect(hrefs).toContain(h));
+  expect(c.querySelector('nav a[aria-current="page"]').getAttribute('href')).toBe('/dashboard');
+  document.documentElement.dataset.theme = 'light';
+  const toggle = Array.from(c.querySelectorAll('button')).find((b) => /dark theme/i.test(b.getAttribute('aria-label') || ''));
+  await act(async () => { toggle.click(); });
+  expect(document.documentElement.dataset.theme).toBe('dark');
+  document.documentElement.dataset.theme = 'light';
 });

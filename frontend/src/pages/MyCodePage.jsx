@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyRound, Copy, Download, Volume2, LogIn, RotateCcw } from 'lucide-react';
+import { Copy, Download, LogIn, RotateCcw, Volume2 } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import LogoutButton from '../components/LogoutButton';
+import { PageHeader, Notice } from '../components/ui';
 
 export default function MyCodePage() {
   const { speak, speechSupported, announce } = useAccessibility();
@@ -27,12 +28,12 @@ export default function MyCodePage() {
       announce('Code copied');
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      setMessage({ kind: 'error', text: 'Copy did not work in this browser. Please select the code and copy it by hand.' });
+      setMessage({ kind: 'error', text: 'Copy did not work in this browser. Select the code and copy it by hand.' });
     }
   };
 
   const download = () => {
-    const text = `Learning DNA resume code\n\n${code}\n\nGo to https://learning-dna.vercel.app/my-code and type this code under "Continue with a code".\nAnyone who has this code can open your progress, so keep it private.\n`;
+    const text = `Learning DNA resume code\n\n${code}\n\nGo to ${window.location.origin}/my-code and type this code under "Continue with a code".\nAnyone who has this code can open your progress, so keep it private.\n`;
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
     const link = document.createElement('a');
     link.href = url;
@@ -78,89 +79,58 @@ export default function MyCodePage() {
   };
 
   return (
-    <div className="px-6 py-8 max-w-4xl mx-auto space-y-6">
-      <div>
-        <div className="flex items-center gap-2 mb-2">
-          <KeyRound size={18} className="text-teal-400" />
-          <h1 className="font-display font-bold text-2xl text-white">My code</h1>
-        </div>
-        <p className="text-slate-300 text-sm">
-          There is no password. Your code is how you come back to your progress on any phone or computer.
-          Keep it somewhere safe. Anyone who has your code can open your progress, so do not share it.
-        </p>
-      </div>
+    <div className="page-narrow">
+      <PageHeader
+        title="My code"
+        lead="There is no password. Your code brings back your progress on any phone or computer. Keep it somewhere safe: anyone who has it can open your progress."
+      />
 
-      <section aria-labelledby="your-code" className="glass-card p-6 space-y-4">
-        <h2 id="your-code" className="font-display font-semibold text-white">Your code</h2>
-        {loadError && <p role="alert" className="text-sm text-amber-300">{loadError}</p>}
-        {!code && !loadError && <p className="text-slate-300 text-sm" role="status">Loading your code…</p>}
+      <section aria-labelledby="your-code" className="border-b border-line pb-8">
+        <h2 id="your-code" className="section-title">Your code</h2>
+        {loadError && <Notice tone="danger" className="mt-3" title="Your code could not be loaded">{loadError}</Notice>}
+        {!code && !loadError && <p className="mt-3 text-muted" role="status">Loading your code...</p>}
         {code && (
           <>
-            <p className="font-mono text-3xl text-teal-300 break-words" data-testid="resume-code">{code}</p>
-            <div className="flex flex-wrap gap-3">
-              <button type="button" className="btn-cyber flex items-center gap-1" onClick={copy}>
-                <Copy size={14} aria-hidden="true" /> {copied ? 'Copied' : 'Copy code'}
-              </button>
-              {speechSupported && (
-                <button type="button" className="btn-cyber flex items-center gap-1" onClick={readAloud}>
-                  <Volume2 size={14} aria-hidden="true" /> Read code aloud
-                </button>
-              )}
-              <button type="button" className="btn-cyber flex items-center gap-1" onClick={download}>
-                <Download size={14} aria-hidden="true" /> Download as text file
-              </button>
+            <p className="mt-3 break-words rounded-lg border border-line-strong bg-surface px-4 py-3 font-mono text-2xl tracking-tight sm:text-3xl" data-testid="resume-code">{code}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className="btn btn-primary btn-sm" onClick={copy}><Copy size={14} aria-hidden="true" /> {copied ? 'Copied' : 'Copy code'}</button>
+              {speechSupported && <button type="button" className="btn btn-secondary btn-sm" onClick={readAloud}><Volume2 size={14} aria-hidden="true" /> Read code aloud</button>}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={download}><Download size={14} aria-hidden="true" /> Download as text file</button>
             </div>
-            <p className="text-slate-300 text-xs">
-              It has three words and a number. You can type it with hyphens or with spaces.
-            </p>
+            <p className="hint">It has three words and a number. Type it with hyphens or with spaces.</p>
           </>
         )}
       </section>
 
-      <section aria-labelledby="continue-code" className="glass-card p-6 space-y-4">
-        <h2 id="continue-code" className="font-display font-semibold text-white">Continue with a code</h2>
-        <form onSubmit={resume} className="space-y-3">
-          <div>
-            <label htmlFor="code-input" className="block text-sm text-white mb-1">Your code</label>
-            <input
-              id="code-input" ref={inputRef} className="cyber-input w-full" value={typed}
-              onChange={(e) => setTyped(e.target.value)} autoComplete="off" autoCapitalize="none" spellCheck={false}
-              aria-describedby="code-help" placeholder="maple-river-tiger-42"
-            />
-            <p id="code-help" className="text-slate-300 text-xs mt-1">
-              Type the three words and the number. Capital letters and spaces are fine.
-            </p>
-          </div>
-          <button type="submit" className="btn-cyber-solid flex items-center gap-1" disabled={busy}>
-            <LogIn size={14} aria-hidden="true" /> {busy ? 'Checking…' : 'Continue'}
+      <section aria-labelledby="continue-code" className="border-b border-line py-8">
+        <h2 id="continue-code" className="section-title">Continue with a code</h2>
+        <form onSubmit={resume} className="mt-3 max-w-md">
+          <label htmlFor="code-input" className="label">Your code</label>
+          <input
+            id="code-input" ref={inputRef} className="input" value={typed} onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off" autoCapitalize="none" spellCheck={false} aria-describedby="code-help" placeholder="maple-river-tiger-42"
+          />
+          <p id="code-help" className="hint">Type the three words and the number. Capital letters and spaces are fine.</p>
+          <button type="submit" className="btn btn-primary mt-4" disabled={busy || !typed.trim()}>
+            <LogIn size={16} aria-hidden="true" /> {busy ? 'Checking...' : 'Continue'}
           </button>
         </form>
-        <p className="text-slate-300 text-xs">
-          Continuing replaces the progress shown on this browser with the progress that belongs to the code.
-        </p>
+        <p className="hint">Continuing replaces the progress shown on this browser with the progress that belongs to the code.</p>
         {message.text && (
-          <p role={message.kind === 'error' ? 'alert' : 'status'} className={`text-sm ${message.kind === 'error' ? 'text-amber-300' : 'text-teal-300'}`}>
-            {message.text}
-          </p>
+          <div className="mt-3"><Notice tone={message.kind === 'error' ? 'danger' : 'success'}>{message.text}</Notice></div>
         )}
       </section>
 
-      <section aria-labelledby="restart-title" className="glass-card p-6 space-y-3">
-        <h2 id="restart-title" className="font-display font-semibold text-white">Start a new study plan</h2>
-        <p className="text-slate-300 text-sm">
-          This clears your current plan and quiz so you can begin again. Your accessibility settings and your code are kept.
-        </p>
-        <button type="button" className="btn-cyber flex items-center gap-1" onClick={startOver}>
-          <RotateCcw size={14} aria-hidden="true" /> Start a new study plan
-        </button>
+      <section aria-labelledby="restart-title" className="border-b border-line py-8">
+        <h2 id="restart-title" className="section-title">Start a new study plan</h2>
+        <p className="mt-2 text-muted">This clears your current plan and quiz so you can begin again. Your accessibility settings and your code are kept.</p>
+        <button type="button" className="btn btn-secondary mt-4" onClick={startOver}><RotateCcw size={16} aria-hidden="true" /> Start a new study plan</button>
       </section>
 
-      <section aria-labelledby="logout-title" className="glass-card p-6 space-y-3">
-        <h2 id="logout-title" className="font-display font-semibold text-white">Using a shared computer?</h2>
-        <p className="text-slate-300 text-sm">
-          Log out when you finish so the next person does not see your progress. Your progress stays saved under your code.
-        </p>
-        <LogoutButton />
+      <section aria-labelledby="logout-title" className="pt-8">
+        <h2 id="logout-title" className="section-title">Using a shared computer?</h2>
+        <p className="mt-2 text-muted">Log out when you finish so the next person does not see your progress. Your progress stays saved under your code.</p>
+        <div className="mt-4"><LogoutButton className="btn btn-secondary" /></div>
       </section>
     </div>
   );

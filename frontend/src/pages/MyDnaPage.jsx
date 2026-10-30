@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useFlaskData } from '../hooks/useFlaskData';
+import LoadingScreen from '../components/LoadingScreen';
+import { PageHeader, Notice } from '../components/ui';
 
 const LEVEL_OPTIONS = [['none', 'No difficulty'], ['some', 'Some difficulty'], ['high', 'A lot of difficulty']];
+const LEVEL_LABEL = Object.fromEntries(LEVEL_OPTIONS);
 
 const QUESTIONS = [
   ['vision', 'Seeing', 'How much difficulty do you have reading a screen?'],
@@ -12,20 +15,30 @@ const QUESTIONS = [
   ['motor', 'Using a mouse or keyboard', 'How much difficulty do you have with hand movement or using a mouse?'],
 ];
 
-const MODE_TITLES = {
-  audio_first: 'Audio-first', captioned_visual: 'Captioned and visual', hands_free: 'Hands-free', balanced: 'Balanced',
-};
+const MODE_TITLES = { audio_first: 'Audio-first', captioned_visual: 'Captioned and visual', hands_free: 'Hands-free', balanced: 'Balanced' };
+
+const EMPTY = { vision: 'none', hearing: 'none', motor: 'none', prefers_audio: false, prefers_captions: false, prefers_visuals: false, pace: 'normal' };
 
 export default function MyDnaPage() {
   const { replacePrefs, announce } = useAccessibility();
   const { refresh } = useFlaskData();
-  const [form, setForm] = useState({
-    vision: 'none', hearing: 'none', motor: 'none',
-    prefers_audio: false, prefers_captions: false, prefers_visuals: false, pace: 'normal',
-  });
-  const [result, setResult] = useState(null);
+  const [form, setForm] = useState(EMPTY);
+  const [saved, setSaved] = useState(null);          // the stored profile, if there is one
+  const [editing, setEditing] = useState(false);
+  const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const resultRef = useRef(null);
+
+  useEffect(() => {
+    apiFetch('/api/profile/learning-dna')
+      .then((d) => {
+        if (d.needProfile) { setSaved(d.needProfile); setForm({ ...EMPTY, ...d.needProfile.intake }); }
+        else setEditing(true);
+      })
+      .catch(() => setEditing(true))
+      .finally(() => setReady(true));
+  }, []);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -39,114 +52,134 @@ export default function MyDnaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      setResult(data.needProfile);
+      setSaved(data.needProfile);
+      setEditing(false);
       replacePrefs(data.preferences);
       refresh?.();
-      announce(`Your settings were updated. Suggested style: ${MODE_TITLES[data.needProfile.mode]}.`);
+      announce(`Your settings were saved. Suggested style: ${MODE_TITLES[data.needProfile.mode]}.`);
+      setTimeout(() => resultRef.current?.focus(), 0);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Could not save your answers. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="max-w-3xl mx-auto px-6 py-10">
-      <h1 className="font-display font-bold text-3xl text-white mb-2">My Learning DNA</h1>
-      <p className="text-slate-300 mb-6">
-        Tell us how you like to learn. We use your answers to suggest a learning style and to set up the site for you.
-        Everything is optional, it stays your choice, and you can change any setting later in Accessibility settings.
-        This is not a medical test.
-      </p>
+  const cancel = () => {
+    setForm({ ...EMPTY, ...saved.intake });
+    setEditing(false);
+    setError('');
+  };
 
-      <form onSubmit={submit} className="space-y-6">
-        {QUESTIONS.map(([key, title, help]) => (
-          <fieldset key={key} className="glass-card p-5">
-            <legend className="font-display font-semibold text-white px-1">{title}</legend>
-            <p className="text-sm text-slate-300 mb-3">{help}</p>
-            <div className="flex flex-wrap gap-4">
-              {LEVEL_OPTIONS.map(([value, label]) => (
-                <label key={value} className="flex items-center gap-2 text-sm text-white cursor-pointer">
-                  <input type="radio" name={key} value={value} checked={form[key] === value} onChange={() => set(key, value)} className="a11y-check" />
+  if (!ready) return <LoadingScreen label="Loading your profile" />;
+
+  return (
+    <div className="page-narrow">
+      <PageHeader
+        title="My learning DNA"
+        lead="Tell the site how you like to learn. Your answers suggest a learning style and set up accessibility settings for you. Everything is optional, it is your choice, and you can change any setting later. This is not a medical test."
+      />
+
+      {editing ? (
+        <form onSubmit={submit} className="space-y-8">
+          {QUESTIONS.map(([key, title, help]) => (
+            <fieldset key={key}>
+              <legend className="text-base font-semibold text-ink">{title}</legend>
+              <p className="hint mt-1">{help}</p>
+              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+                {LEVEL_OPTIONS.map(([value, label]) => (
+                  <label key={value} className="flex cursor-pointer items-center gap-2 text-ink">
+                    <input type="radio" name={key} value={value} checked={form[key] === value} onChange={() => set(key, value)} className="check !rounded-full" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ))}
+
+          <fieldset>
+            <legend className="text-base font-semibold text-ink">How do you like to learn?</legend>
+            <p className="hint mt-1">Choose any that apply.</p>
+            <div className="mt-3 space-y-2">
+              {[['prefers_audio', 'I like to listen to lessons'], ['prefers_captions', 'I like captions and written transcripts'], ['prefers_visuals', 'I like diagrams and visuals']].map(([key, label]) => (
+                <label key={key} className="flex cursor-pointer items-center gap-3 text-ink">
+                  <input type="checkbox" checked={form[key]} onChange={(e) => set(key, e.target.checked)} className="check" />
                   {label}
                 </label>
               ))}
             </div>
           </fieldset>
-        ))}
 
-        <fieldset className="glass-card p-5">
-          <legend className="font-display font-semibold text-white px-1">How do you like to learn?</legend>
-          <div className="space-y-3 mt-2">
-            {[['prefers_audio', 'I like to listen to lessons'], ['prefers_captions', 'I like captions and written transcripts'], ['prefers_visuals', 'I like diagrams and visuals']].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-3 text-sm text-white cursor-pointer">
-                <input type="checkbox" checked={form[key]} onChange={(e) => set(key, e.target.checked)} className="a11y-check" />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset className="glass-card p-5">
-          <legend className="font-display font-semibold text-white px-1">Pace</legend>
-          <div className="flex flex-wrap gap-4 mt-2">
-            {[['slow', 'I prefer to go slowly'], ['normal', 'Normal pace is fine']].map(([value, label]) => (
-              <label key={value} className="flex items-center gap-2 text-sm text-white cursor-pointer">
-                <input type="radio" name="pace" value={value} checked={form.pace === value} onChange={() => set('pace', value)} className="a11y-check" />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {error && <div role="alert" className="text-red-300 text-sm">{error}</div>}
-        <button type="submit" disabled={loading} className="btn-cyber-solid">{loading ? 'Working...' : 'Set up my learning style'}</button>
-      </form>
-
-      {result && (
-        <section aria-labelledby="result-title" className="glass-card p-6 mt-8" tabIndex={-1}>
-          <h2 id="result-title" className="font-display font-bold text-xl text-white mb-2">
-            Suggested style: {MODE_TITLES[result.mode]}
-          </h2>
-          <p className="text-slate-200 mb-3">{result.mode_description}</p>
-          <p className="text-sm text-slate-300 mb-4">
-            Model confidence: {Math.round(result.confidence * 100)}%.
-            {' '}It is a suggestion, so change any setting that does not suit you.
-          </p>
-
-          {result.reasons.length > 0 && (
-            <>
-              <h3 className="font-semibold text-white text-sm mb-1">Settings we turned on</h3>
-              <ul className="list-disc pl-5 text-sm text-slate-200 space-y-1 mb-4">
-                {result.reasons.map((r) => <li key={r}>{r}</li>)}
-              </ul>
-            </>
-          )}
-
-          {result.drivers.length > 0 && (
-            <>
-              <h3 className="font-semibold text-white text-sm mb-1">What the model looked at most</h3>
-              <ul className="list-disc pl-5 text-sm text-slate-200 space-y-1 mb-4">
-                {result.drivers.map((d) => <li key={d.feature}>Your {d.feature} pushed the suggestion {d.effect} this style.</li>)}
-              </ul>
-            </>
-          )}
-
-          <h3 className="font-semibold text-white text-sm mb-1">How likely each style is</h3>
-          <table className="text-sm text-slate-200 mb-4">
-            <caption className="sr-only">Model probability for each learning style</caption>
-            <thead><tr><th scope="col" className="text-left pr-6 font-semibold">Style</th><th scope="col" className="text-left font-semibold">Probability</th></tr></thead>
-            <tbody>
-              {Object.entries(result.probabilities).map(([mode, p]) => (
-                <tr key={mode}><th scope="row" className="text-left pr-6 font-normal">{MODE_TITLES[mode]}</th><td>{Math.round(p * 100)}%</td></tr>
+          <fieldset>
+            <legend className="text-base font-semibold text-ink">Pace</legend>
+            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
+              {[['slow', 'I prefer to go slowly'], ['normal', 'Normal pace is fine']].map(([value, label]) => (
+                <label key={value} className="flex cursor-pointer items-center gap-2 text-ink">
+                  <input type="radio" name="pace" value={value} checked={form.pace === value} onChange={() => set('pace', value)} className="check !rounded-full" />
+                  {label}
+                </label>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </fieldset>
 
-          <p className="text-xs text-slate-400 mb-4">
-            Model: {result.model.backend}, trained on {result.model.training_data}.
-          </p>
-          <Link to="/lessons" className="btn-cyber-solid inline-block">Go to accessible lessons</Link>
+          {error && <Notice tone="danger" title="Your answers were not saved">{error}</Notice>}
+          <div className="flex flex-wrap gap-3 border-t border-line pt-6">
+            <button type="submit" disabled={loading} className="btn btn-primary">{loading ? 'Saving...' : saved ? 'Save changes' : 'Save my answers'}</button>
+            {saved && <button type="button" className="btn btn-secondary" onClick={cancel}>Cancel</button>}
+          </div>
+        </form>
+      ) : saved && (
+        <section aria-labelledby="result-title">
+          <Notice tone="success" className="mb-6" title="Your answers are saved">The accessibility settings below are already on. Change them any time in Accessibility settings.</Notice>
+
+          <h2 id="result-title" ref={resultRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight outline-none">Suggested style: {MODE_TITLES[saved.mode]}</h2>
+          <p className="mt-2 text-ink">{saved.mode_description}</p>
+          <p className="mt-2 text-sm text-muted">A suggestion, not a diagnosis. If a setting does not suit you, change it.</p>
+
+          {saved.reasons.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-base font-semibold">Settings we turned on</h3>
+              <ul className="mt-2 list-disc space-y-1 pl-6 text-ink">{saved.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+            </div>
+          )}
+
+          <div className="mt-8 border-t border-line pt-6">
+            <h3 className="text-base font-semibold">Your answers</h3>
+            <dl className="mt-3 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+              {QUESTIONS.map(([key, title]) => (
+                <div key={key}><dt className="text-muted">{title}</dt><dd className="font-medium text-ink">{LEVEL_LABEL[saved.intake[key]]}</dd></div>
+              ))}
+              <div><dt className="text-muted">Pace</dt><dd className="font-medium text-ink">{saved.intake.pace === 'slow' ? 'Slowly' : 'Normal'}</dd></div>
+              <div className="sm:col-span-2"><dt className="text-muted">Likes</dt><dd className="font-medium text-ink">
+                {[saved.intake.prefers_audio && 'Listening to lessons', saved.intake.prefers_captions && 'Captions and transcripts', saved.intake.prefers_visuals && 'Diagrams and visuals'].filter(Boolean).join(', ') || 'No preference chosen'}
+              </dd></div>
+            </dl>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}>Edit my answers</button>
+              <Link to="/lessons" className="btn btn-primary">Go to lessons</Link>
+            </div>
+          </div>
+
+          <details className="mt-8 rounded-xl border border-line bg-surface p-5">
+            <summary className="cursor-pointer font-medium text-ink">How the suggestion was made</summary>
+            <div className="mt-3 space-y-3 text-sm text-muted">
+              <p>A small model ({saved.model.backend}) compared your answers with example learners. It was trained on {saved.model.training_data}, not on real students, so treat the result as a starting point.</p>
+              <p>How sure the model is: {Math.round(saved.confidence * 100)}%.</p>
+              {saved.drivers.length > 0 && (
+                <div>
+                  <p className="font-medium text-ink">What mattered most</p>
+                  <ul className="mt-1 list-disc space-y-1 pl-6">{saved.drivers.map((d) => <li key={d.feature}>Your {d.feature} pushed the suggestion {d.effect} this style.</li>)}</ul>
+                </div>
+              )}
+              <table className="table max-w-sm">
+                <caption className="sr-only">Model probability for each learning style</caption>
+                <thead><tr><th scope="col">Style</th><th scope="col">Probability</th></tr></thead>
+                <tbody>{Object.entries(saved.probabilities).map(([mode, p]) => (
+                  <tr key={mode}><th scope="row" className="!font-normal">{MODE_TITLES[mode]}</th><td className="tabular-nums">{Math.round(p * 100)}%</td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </details>
         </section>
       )}
     </div>

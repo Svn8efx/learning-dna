@@ -1,298 +1,171 @@
-import React, { useState } from 'react';
-import { FolderOpen, Play, BookOpen, Database, Wrench, ExternalLink, Filter, Star, Award, ChevronDown } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ExternalLink, FolderOpen, Play, Wrench } from 'lucide-react';
 import { useFlaskData } from '../hooks/useFlaskData';
-
-const LEVEL_BADGE = {
-  beginner:     { color: '#4ade80', bg: 'rgba(74,222,128,0.12)',   border: 'rgba(74,222,128,0.3)' },
-  intermediate: { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',   border: 'rgba(251,191,36,0.3)' },
-  advanced:     { color: '#f87171', bg: 'rgba(248,113,113,0.12)',  border: 'rgba(248,113,113,0.3)' },
-};
+import LoadingScreen from '../components/LoadingScreen';
+import { PageHeader, EmptyState, capitalize } from '../components/ui';
 
 function youtubeEmbed(url) {
   if (!url) return '';
   const m = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
-  return m ? `https://www.youtube.com/embed/${m[1]}` : url;
+  return m ? `https://www.youtube.com/embed/${m[1]}` : '';
 }
 
-function VideoCard({ video }) {
-  const embedUrl = youtubeEmbed(video.url);
+const TYPE_LABEL = { video: 'Video', course: 'Course', dataset: 'Dataset search' };
+
+/** One resource: a type label, a title that is a link, and the details that are actually known. */
+function ResourceRow({ item }) {
   const [showEmbed, setShowEmbed] = useState(false);
+  const embed = item.type === 'video' ? youtubeEmbed(item.url) : '';
+  const details = [];
+  if (item.type === 'video') {
+    if (item.channel) details.push(item.channel);
+    if (item.duration) details.push(item.duration);
+    if (item.viewCount) details.push(`${item.viewCount} views`);
+  } else if (item.type === 'course') {
+    if (item.provider) details.push(item.provider);
+    if (item.rating) details.push(`Rating ${item.rating}`);
+    if (item.learners) details.push(`${item.learners} learners`);
+    if (item.duration_hours) details.push(`${item.duration_hours} hours`);
+  } else if (item.source) {
+    details.push(item.source);
+  }
+
   return (
-    <div className="resource-card">
-      {showEmbed ? (
-        <div className="aspect-video">
-          <iframe
-            src={embedUrl}
-            title={video.title}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+    <li className="py-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <p className="eyebrow">{TYPE_LABEL[item.type]}</p>
+          <a href={item.url} target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-start gap-1.5 font-medium">
+            <span>{item.title}</span>
+            <ExternalLink size={14} aria-hidden="true" className="mt-1 shrink-0" />
+            <span className="sr-only">(opens in a new tab)</span>
+          </a>
+          {details.length > 0 && <p className="mt-0.5 text-sm text-muted">{details.join(' · ')}</p>}
+          {item.description && <p className="mt-1 text-sm text-muted">{item.description}</p>}
         </div>
-      ) : (
-        <button
-          onClick={() => setShowEmbed(true)}
-          className="w-full aspect-video bg-red-900/10 flex flex-col items-center justify-center gap-3 group hover:bg-red-900/20 transition-colors"
-        >
-          <div className="w-14 h-14 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Play size={22} className="text-red-400 ml-1" />
-          </div>
-          <span className="text-slate-400 text-xs">Click to play</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {item.type === 'course' && item.certificate && <span className="badge badge-neutral">Certificate</span>}
+          {item.type === 'course' && item.verified && <span className="badge badge-success">Verified</span>}
+          {embed && (
+            <button type="button" className="btn btn-secondary btn-sm" aria-expanded={showEmbed} onClick={() => setShowEmbed((s) => !s)}>
+              <Play size={14} aria-hidden="true" /> {showEmbed ? 'Hide player' : 'Watch here'}
+            </button>
+          )}
+        </div>
+      </div>
+      {showEmbed && embed && (
+        <div className="mt-3 aspect-video max-w-2xl overflow-hidden rounded-lg border border-line bg-black">
+          <iframe src={embed} title={item.title} className="h-full w-full" allow="encrypted-media; picture-in-picture" allowFullScreen />
+        </div>
       )}
-      <div className="p-3">
-        <a href={video.url} target="_blank" rel="noreferrer"
-          className="font-display font-semibold text-white text-sm hover:text-teal-400 transition-colors leading-tight block mb-1">
-          {video.title}
-        </a>
-        <div className="text-slate-500 text-xs flex items-center gap-2">
-          <span>{video.channel}</span>
-          {video.duration && <><span>·</span><span>{video.duration}</span></>}
-          {video.viewCount && <><span>·</span><span>{video.viewCount} views</span></>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CourseCard({ course }) {
-  const lvl = LEVEL_BADGE[course.level] || LEVEL_BADGE.beginner;
-  return (
-    <a href={course.url} target="_blank" rel="noreferrer" className="resource-card p-4 block group hover:no-underline">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="w-9 h-9 rounded-xl bg-teal-400/10 flex items-center justify-center flex-shrink-0">
-          <BookOpen size={16} className="text-teal-400" />
-        </div>
-        <div className="flex gap-1.5 flex-shrink-0">
-          {course.certificate && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 flex items-center gap-1">
-              <Award size={8} /> CERT
-            </span>
-          )}
-          {course.verified && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-400/10 border border-green-400/30 text-green-400">Verified</span>
-          )}
-        </div>
-      </div>
-      <div className="font-display font-semibold text-white text-sm leading-tight group-hover:text-teal-400 transition-colors mb-1">
-        {course.title}
-      </div>
-      <div className="text-slate-500 text-xs mb-2">{course.provider}</div>
-      <div className="flex items-center gap-3 text-xs flex-wrap">
-        {course.rating && (
-          <div className="flex items-center gap-1 text-yellow-400">
-            <Star size={10} fill="currentColor" />
-            <span className="font-mono font-semibold">{course.rating}</span>
-          </div>
-        )}
-        {course.learners && <span className="text-slate-500">{course.learners} learners</span>}
-        {course.duration_hours && <span className="text-slate-500">{course.duration_hours}h</span>}
-        <span className="px-1.5 py-0.5 rounded-md text-[10px]"
-          style={{ color: lvl.color, background: lvl.bg, border: `1px solid ${lvl.border}` }}>
-          {course.level}
-        </span>
-      </div>
-    </a>
-  );
-}
-
-function DatasetCard({ dataset }) {
-  const lvl = LEVEL_BADGE[dataset.level] || LEVEL_BADGE.beginner;
-  return (
-    <a href={dataset.url} target="_blank" rel="noreferrer" className="resource-card p-4 block group">
-      <div className="flex items-start gap-3 mb-2">
-        <div className="w-8 h-8 rounded-xl bg-blue-400/10 flex items-center justify-center flex-shrink-0">
-          <Database size={14} className="text-blue-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-display font-semibold text-white text-sm leading-tight group-hover:text-teal-400 transition-colors truncate">
-            {dataset.title}
-          </div>
-          <div className="text-slate-500 text-xs mt-0.5 flex items-center gap-2">
-            <span>{dataset.source}</span>
-            <span className="px-1.5 py-0.5 rounded text-[10px]"
-              style={{ color: lvl.color, background: lvl.bg }}>
-              {dataset.level}
-            </span>
-          </div>
-        </div>
-        <ExternalLink size={12} className="text-slate-600 group-hover:text-teal-400 flex-shrink-0 mt-0.5 transition-colors" />
-      </div>
-      <div className="text-slate-400 text-xs leading-relaxed">{dataset.description}</div>
-    </a>
+    </li>
   );
 }
 
 export default function ResourcesPage() {
-  const { resources } = useFlaskData();
-  const [selectedTopic, setSelectedTopic] = useState('all');
-  const [levelFilter, setLevelFilter] = useState('all');
-  const [activeSection, setActiveSection] = useState({});
+  const { resources, loaded } = useFlaskData();
+  const [query, setQuery] = useState('');
+  const [topic, setTopic] = useState('all');
+  const [level, setLevel] = useState('all');
+  const [type, setType] = useState('all');
 
-  const topics = ['all', ...resources.map(r => r.topic)];
+  const sections = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return resources
+      .filter((r) => (topic === 'all' || r.topic === topic) && (level === 'all' || r.level === level))
+      .map((r) => {
+        const items = [
+          ...(r.videos || []).map((x) => ({ ...x, type: 'video' })),
+          ...(r.courses || []).map((x) => ({ ...x, type: 'course' })),
+          ...(r.datasets || []).map((x) => ({ ...x, type: 'dataset' })),
+        ].filter((i) => (type === 'all' || i.type === type)
+          && (!q || [i.title, i.channel, i.provider, i.source, r.topic].filter(Boolean).join(' ').toLowerCase().includes(q)));
+        return { ...r, items };
+      })
+      .filter((s) => s.items.length > 0);
+  }, [resources, topic, level, type, query]);
 
-  const filtered = resources.filter(r => {
-    if (selectedTopic !== 'all' && r.topic !== selectedTopic) return false;
-    if (levelFilter !== 'all' && r.level !== levelFilter) return false;
-    return true;
-  });
+  if (!loaded) return <LoadingScreen label="Loading resources" />;
 
-  const toggleSection = (topic, section) => {
-    setActiveSection(s => ({ ...s, [`${topic}_${section}`]: !s[`${topic}_${section}`] }));
-  };
+  if (!resources.length) {
+    return (
+      <div className="page-narrow">
+        <PageHeader title="Resources" lead="Videos, courses and datasets for the topics in your plan." />
+        <EmptyState icon={FolderOpen} title="No resources yet" action={<Link to="/goals" className="btn btn-primary">Build your plan</Link>}>
+          Resources are chosen for each topic in your study plan, so build your plan first.
+        </EmptyState>
+      </div>
+    );
+  }
+
+  const total = sections.reduce((n, s) => n + s.items.length, 0);
+  const filtered = query || topic !== 'all' || level !== 'all' || type !== 'all';
+  const clear = () => { setQuery(''); setTopic('all'); setLevel('all'); setType('all'); };
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <FolderOpen size={20} className="text-teal-400" />
+    <div className="page">
+      <PageHeader title="Resources" lead="Videos, courses and datasets for each topic in your plan. Links open on the original site." />
+
+      <form role="search" aria-label="Filter resources" onSubmit={(e) => e.preventDefault()} className="grid gap-4 border-y border-line py-5 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
         <div>
-          <h1 className="font-display font-bold text-2xl text-white">Learning Resources</h1>
-          <p className="text-slate-500 text-sm">Videos, courses, datasets & projects, ranked for your level</p>
+          <label htmlFor="res-q" className="label">Search</label>
+          <input id="res-q" type="search" className="input" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Title, channel or provider" />
         </div>
-      </div>
+        <div>
+          <label htmlFor="res-topic" className="label">Topic</label>
+          <select id="res-topic" className="select" value={topic} onChange={(e) => setTopic(e.target.value)}>
+            <option value="all">All topics</option>
+            {resources.map((r) => <option key={r.topic} value={r.topic}>{capitalize(r.topic)}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="res-type" className="label">Type</label>
+          <select id="res-type" className="select" value={type} onChange={(e) => setType(e.target.value)}>
+            <option value="all">All types</option>
+            <option value="video">Videos</option>
+            <option value="course">Courses</option>
+            <option value="dataset">Dataset searches</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="res-level" className="label">Level</label>
+          <select id="res-level" className="select" value={level} onChange={(e) => setLevel(e.target.value)}>
+            <option value="all">All levels</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+      </form>
 
-      {/* Filters */}
-      <div className="glass-card p-4 flex flex-wrap gap-4 items-center">
-        <div className="flex items-center gap-2 text-slate-400 text-sm">
-          <Filter size={14} />
-          <span className="font-display font-medium">Filters</span>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500">Topic</label>
-            <select
-              aria-label="Topic"
-              className="cyber-select"
-              value={selectedTopic}
-              onChange={e => setSelectedTopic(e.target.value)}
-            >
-              {topics.map(t => <option key={t} value={t}>{t === 'all' ? 'All Topics' : t}</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500">Level</label>
-            <select
-              aria-label="Level"
-              className="cyber-select"
-              value={levelFilter}
-              onChange={e => setLevelFilter(e.target.value)}
-            >
-              {['all', 'beginner', 'intermediate', 'advanced'].map(l =>
-                <option key={l} value={l}>{l === 'all' ? 'All Levels' : l}</option>
-              )}
-            </select>
-          </div>
-        </div>
-        <div className="ml-auto text-xs text-slate-500 font-mono">{filtered.length} topic{filtered.length !== 1 ? 's' : ''} shown</div>
-      </div>
+      <p className="mt-3 text-sm text-muted" role="status">{total} resource{total === 1 ? '' : 's'} in {sections.length} topic{sections.length === 1 ? '' : 's'}{filtered ? ' match your filters' : ''}.</p>
 
-      {/* Resource cards per topic */}
-      {filtered.length === 0 && (
-        <div className="glass-card p-12 text-center">
-          <FolderOpen size={36} className="text-slate-600 mx-auto mb-3" />
-          <div className="text-slate-400">No resources match your filters</div>
+      {sections.length === 0 && (
+        <div className="mt-6">
+          <EmptyState icon={FolderOpen} title="Nothing matches those filters" action={<button type="button" className="btn btn-secondary" onClick={clear}>Clear filters</button>}>
+            Try a different word, or show all topics, types and levels.
+          </EmptyState>
         </div>
       )}
 
-      {filtered.map(card => {
-        const lvl = LEVEL_BADGE[card.level] || LEVEL_BADGE.beginner;
-        return (
-          <div key={card.topic} className="glass-card overflow-hidden">
-            {/* Card header */}
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400/20 to-teal-400/20 flex items-center justify-center">
-                  <BookOpen size={16} className="text-teal-400" />
-                </div>
-                <div>
-                  <div className="font-display font-bold text-white capitalize">{card.topic}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs px-2 py-0.5 rounded-full border"
-                      style={{ color: lvl.color, background: lvl.bg, borderColor: lvl.border }}>
-                      {card.level}
-                    </span>
-                    <span className="text-xs text-slate-600 font-mono">{card.video_source}</span>
-                  </div>
-                </div>
-              </div>
+      <div className="mt-8 space-y-10">
+        {sections.map((s) => (
+          <section key={s.topic} aria-labelledby={`res-${s.topic.replace(/\s+/g, '-')}`}>
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 id={`res-${s.topic.replace(/\s+/g, '-')}`} className="text-xl font-semibold tracking-tight">{capitalize(s.topic)}</h2>
+              <span className="text-sm text-muted">Suggested level: {s.level}</span>
+              <Link to={`/lesson/${encodeURIComponent(s.topic)}`} className="text-sm">Read the lesson</Link>
             </div>
-
-            {/* Mini project */}
-            {card.project && (
-              <div className="px-6 py-3 bg-teal-400/5 border-b border-white/10 flex items-start gap-2">
-                <Wrench size={13} className="text-teal-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <span className="text-teal-400 text-xs font-semibold mr-2">Mini Project:</span>
-                  <span className="text-slate-300 text-xs">{card.project}</span>
-                </div>
-              </div>
+            {s.project && (
+              <p className="mt-2 flex items-start gap-2 text-sm text-muted"><Wrench size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-accent" /><span><span className="font-medium text-ink">Mini project:</span> {s.project}</span></p>
             )}
-
-            <div className="p-6 space-y-6">
-              {/* Videos */}
-              {card.videos?.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => toggleSection(card.topic, 'videos')}
-                    className="flex items-center gap-2 mb-3 group"
-                  >
-                    <Play size={14} className="text-red-400" />
-                    <span className="font-display font-semibold text-white text-sm">Videos</span>
-                    <span className="text-slate-500 text-xs">({card.videos.length})</span>
-                    <ChevronDown size={14} className={`text-slate-500 transition-transform ml-1 ${activeSection[`${card.topic}_videos`] ? '' : 'rotate-180'}`} />
-                  </button>
-                  {!activeSection[`${card.topic}_videos`] && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {card.videos.map((v, i) => <VideoCard key={i} video={v} />)}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Courses */}
-              {card.courses?.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => toggleSection(card.topic, 'courses')}
-                    className="flex items-center gap-2 mb-3"
-                  >
-                    <BookOpen size={14} className="text-teal-400" />
-                    <span className="font-display font-semibold text-white text-sm">Verified Courses</span>
-                    <span className="text-slate-500 text-xs">({card.courses.length})</span>
-                    <ChevronDown size={14} className={`text-slate-500 transition-transform ml-1 ${activeSection[`${card.topic}_courses`] ? '' : 'rotate-180'}`} />
-                  </button>
-                  {!activeSection[`${card.topic}_courses`] && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {card.courses.map((c, i) => <CourseCard key={i} course={c} />)}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Datasets */}
-              {card.datasets?.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => toggleSection(card.topic, 'datasets')}
-                    className="flex items-center gap-2 mb-3"
-                  >
-                    <Database size={14} className="text-blue-400" />
-                    <span className="font-display font-semibold text-white text-sm">Kaggle Datasets</span>
-                    <span className="text-slate-500 text-xs">({card.datasets.length})</span>
-                    <ChevronDown size={14} className={`text-slate-500 transition-transform ml-1 ${activeSection[`${card.topic}_datasets`] ? '' : 'rotate-180'}`} />
-                  </button>
-                  {!activeSection[`${card.topic}_datasets`] && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {card.datasets.map((d, i) => <DatasetCard key={i} dataset={d} />)}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      })}
+            <ul className="mt-3 divide-y divide-line border-y border-line">
+              {s.items.map((item, i) => <ResourceRow key={`${item.type}-${i}`} item={item} />)}
+            </ul>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { LogOut } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 
 /** Logs out after showing the student their code, so they can always come back. */
-export default function LogoutButton({ className = 'btn-cyber flex items-center gap-1' }) {
+export default function LogoutButton({ className = 'btn btn-secondary' }) {
   const [busy, setBusy] = useState(false);
 
   const logOut = async () => {
@@ -33,7 +33,7 @@ export default function LogoutButton({ className = 'btn-cyber flex items-center 
 
   return (
     <button type="button" className={className} onClick={logOut} disabled={busy}>
-      <LogOut size={14} aria-hidden="true" /> Log out
+      <LogOut size={16} aria-hidden="true" /> Log out
     </button>
   );
 }

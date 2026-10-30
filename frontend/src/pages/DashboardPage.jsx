@@ -1,427 +1,217 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  BarChart, Bar, Cell,
-} from 'recharts';
-import {
-  LayoutDashboard, TrendingUp, Brain, BookOpen, Zap, Target,
-  ArrowRight, Info, ChevronRight, Cpu, Database, Star, AlertTriangle, Sparkles
-} from 'lucide-react';
+import { ArrowRight, BookOpen, ClipboardCheck, Compass, Target } from 'lucide-react';
 import { useFlaskData } from '../hooks/useFlaskData';
-import StatCard from '../components/StatCard';
-import HeatmapGrid from '../components/HeatmapGrid';
-import ProgressRing from '../components/ProgressRing';
+import { apiFetch } from '../utils/api';
+import LoadingScreen from '../components/LoadingScreen';
+import QuizTrendChart from '../components/QuizTrendChart';
+import { PageHeader, Meter, StatusBadge, ScoreBadge, scoreBand, capitalize } from '../components/ui';
 
-const LEVEL_CONFIG = {
-  advanced:     { label: 'Advanced',     color: '#f87171', bg: 'bg-red-400/10',    border: 'border-red-400/30',    ring: '#f87171' },
-  intermediate: { label: 'Intermediate', color: '#fbbf24', bg: 'bg-yellow-400/10', border: 'border-yellow-400/30', ring: '#fbbf24' },
-  beginner:     { label: 'Beginner',     color: '#4ade80', bg: 'bg-green-400/10',  border: 'border-green-400/30',  ring: '#4ade80' },
-};
-
-function CustomTooltip({ active, payload, label, aiFeatures = [], mlFeatures = [], datasetRegistry = [], llmMode = '', datasetSources = [] }) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="tooltip-cyber">
-      <div className="font-display font-semibold text-white mb-1">{label}</div>
-      {payload.map(p => (
-        <div key={p.name} className="text-xs flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-slate-400">{p.name}:</span>
-          <span className="text-white font-mono font-medium">{p.value}%</span>
-        </div>
-      ))}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="glass-card p-5 lg:col-span-2">
-          <div className="font-display font-semibold text-white text-sm mb-3">AI + ML capabilities</div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <div className="text-teal-400 text-xs mb-2">AI features</div>
-              <div className="space-y-2">{(aiFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
-            </div>
-            <div>
-              <div className="text-teal-400 text-xs mb-2">ML features</div>
-              <div className="space-y-2">{(mlFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
-            </div>
-          </div>
-        </div>
-        <div className="glass-card p-5">
-          <div className="font-display font-semibold text-white text-sm mb-3">Data + tutor status</div>
-          <div className="text-sm text-slate-300 mb-2">Tutor mode: <span className="text-teal-400">{llmMode}</span></div>
-          <div className="text-sm text-slate-300 mb-2">Dataset sources:</div>
-          <div className="flex flex-wrap gap-2 mb-3">{(datasetSources || []).map((s, i) => <span key={i} className="badge-chip">{s}</span>)}</div>
-          <div className="text-xs text-slate-500">Registry items: {datasetRegistry?.length || 0}</div>
-        </div>
-      </div>
-
-    </div>
-  );
+/** Decide the one most useful next step from the learner's real state. */
+function nextAction({ hasPlan, hasResults, learningPath, weakTopics }) {
+  if (!hasPlan) {
+    return { icon: Compass, title: 'Build your study plan', why: 'Choose a goal and list the topics you need to study. Learning DNA orders them and builds your quiz.', to: '/goals', cta: 'Choose a goal' };
+  }
+  if (!hasResults) {
+    return { icon: ClipboardCheck, title: 'Take your quiz', why: 'The quiz shows which topics in your plan are strong and which need review. It takes a few minutes.', to: '/quiz', cta: 'Start the quiz' };
+  }
+  const current = learningPath.find((s) => s.status === 'in-progress') || learningPath.find((s) => s.status === 'recommended');
+  if (current) {
+    const weak = weakTopics.includes(current.topic);
+    return {
+      icon: BookOpen,
+      title: `${current.status === 'in-progress' ? 'Continue with' : 'Start'} ${capitalize(current.topic)}`,
+      why: weak
+        ? 'This is the next unlocked topic in your path, and your quiz result shows it needs review.'
+        : 'This is the next unlocked topic in your path. Earlier topics it depends on are done.',
+      to: `/lesson/${encodeURIComponent(current.topic)}`, cta: 'Open the lesson', secondary: { to: '/path', label: 'See your path' },
+    };
+  }
+  if (weakTopics.length) {
+    return { icon: BookOpen, title: `Review ${capitalize(weakTopics[0])}`, why: 'Your quiz result for this topic was below 45%.', to: `/lesson/${encodeURIComponent(weakTopics[0])}`, cta: 'Open the lesson' };
+  }
+  return { icon: Target, title: 'Your plan is complete', why: 'Every topic in your path is marked completed. Add new topics to keep going.', to: '/start', cta: 'Edit your plan', secondary: { to: '/resources', label: 'Browse resources' } };
 }
 
 export default function DashboardPage() {
-  const {
-    assessment, profile, modelScores, dataInfo,
-    modelName, automlEngine, avgScore,
-    strengths, weakTopics, accuracyTrend, topicMastery, modernFeatures, learningScore, aiFeatures, mlFeatures, datasetRegistry, llmMode, datasetSources,
-  } = useFlaskData();
+  const { assessment, profile, learningPath, avgScore, weakTopics, strengths, modelName, modelScores, dataInfo, loaded } = useFlaskData();
+  const [trend, setTrend] = useState(null);
 
-  const [activeTab, setActiveTab] = useState('overview');
-  const hasResults = Array.isArray(assessment) && assessment.length > 0;   // has the student taken a quiz yet?
+  useEffect(() => {
+    apiFetch('/api/monitor/summary').then((d) => setTrend(d.summary?.quiz_trend || [])).catch(() => setTrend([]));
+  }, []);
 
-  const overallLevel = avgScore >= 75 ? 'advanced' : avgScore >= 45 ? 'intermediate' : 'beginner';
-  const lvlCfg = LEVEL_CONFIG[overallLevel];
+  if (!loaded) return <LoadingScreen label="Loading your dashboard" />;
 
-  const radarData = topicMastery.map(t => ({ subject: t.topic, A: t.mastery, fullMark: 100 }));
+  const hasPlan = Boolean(profile?.topics?.length);
+  const hasResults = assessment.length > 0;
+  const completed = learningPath.filter((s) => s.status === 'completed').length;
+  const action = nextAction({ hasPlan, hasResults, learningPath, weakTopics });
+  const ActionIcon = action.icon;
+  const pathPct = learningPath.length ? Math.round((completed / learningPath.length) * 100) : 0;
+  const attempts = profile?.activity?.quiz_attempts || 0;
 
   return (
-    <div className="px-6 py-6 max-w-7xl mx-auto space-y-6">
+    <div className="page">
+      <PageHeader
+        title="Dashboard"
+        lead={hasPlan ? <>Your goal: <span className="font-medium text-ink">{profile.target_goal || 'not set'}</span></> : 'You have not built a study plan yet.'}
+        actions={hasPlan && <Link to="/start" className="btn btn-secondary btn-sm">Edit plan</Link>}
+      />
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="font-display font-bold text-2xl text-white">Student Dashboard</h1>
-            <span className={`badge-chip border ${lvlCfg.bg} ${lvlCfg.border}`}
-              style={{ color: lvlCfg.color }}>
-              {lvlCfg.label}
-            </span>
+      {/* The one thing to do next */}
+      <section aria-labelledby="next-title" className="rounded-2xl border border-accent/30 bg-accent-soft p-6 sm:p-8">
+        <p className="eyebrow !text-accent">Next step</p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-xl">
+            <h2 id="next-title" className="flex items-center gap-2 text-2xl font-semibold text-ink"><ActionIcon size={22} aria-hidden="true" className="text-accent" />{action.title}</h2>
+            <p className="mt-2 text-ink/80">{action.why}</p>
           </div>
-          <p className="text-slate-500 text-sm">
-            Goal: <span className="text-slate-300">{profile?.target_goal || 'ML for placement'}</span>
-          </p>
-        </div>
-        <div className="flex gap-3 flex-wrap">
-          <Link to="/resources" className="btn-cyber text-sm">Open Resources <ArrowRight size={14} /></Link>
-          <Link to="/path" className="btn-cyber text-sm">Learning Path <ArrowRight size={14} /></Link>
-          <Link to="/start" className="btn-cyber text-sm text-red-400 border-red-400/30 hover:border-red-400/60">New Plan</Link>
-        </div>
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 xl:grid-cols-5 gap-4">
-        <StatCard className="md:col-span-2 xl:col-span-1" icon={TrendingUp} label="Avg Quiz Score"  value={`${avgScore}%`} color="cyan" />
-        <StatCard className="md:col-span-2 xl:col-span-1" icon={Zap}        label="Learning Score"  value={`${learningScore || 0}%`} color="green" />
-        <StatCard className="md:col-span-2 xl:col-span-1" icon={BookOpen}   label="Topics Chosen"   value={profile?.topics?.length || 0} color="purple" />
-        <StatCard className="md:col-span-3 xl:col-span-1" icon={Cpu}        label="Best Classifier" value={modelName} color="green" sub={automlEngine} />
-        <StatCard className="col-span-2 md:col-span-3 xl:col-span-1" icon={Database} label="Training Rows" value={dataInfo?.rows || 'n/a'} color="pink" sub={dataInfo?.real_data_used ? 'Real Kaggle' : 'Sample data'} />
-      </div>
-
-      {/* Tab nav */}
-      <div className="flex gap-1 p-1 glass-card w-fit">
-        {['overview', 'analytics', 'topics', 'model'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-xl text-sm font-display font-medium transition-all capitalize
-              ${activeTab === tab
-                ? 'bg-teal-400/15 text-teal-400 border border-teal-400/30'
-                : 'text-slate-400 hover:text-slate-200'}`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* ── OVERVIEW TAB ── */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Level ring + summary */}
-          <div className="glass-card p-6 flex flex-col items-center gap-4">
-            <div className="font-display font-semibold text-white text-sm w-full">Overall Level</div>
-            <ProgressRing
-              value={avgScore}
-              size={130}
-              stroke={10}
-              color={lvlCfg.ring}
-              label={lvlCfg.label}
-              sublabel={`${avgScore}% avg score`}
-            />
-            <div className="w-full space-y-2">
-              {assessment.map(item => {
-                const cfg = LEVEL_CONFIG[item.predicted_level] || LEVEL_CONFIG.beginner;
-                return (
-                  <div key={item.topic} className="flex items-center gap-2">
-                    <div className="flex-1 text-xs text-slate-400 capitalize">{item.topic}</div>
-                    <div className="w-24 difficulty-track">
-                      <div className="difficulty-fill" style={{ width: `${item.score_pct}%`, background: cfg.color }} />
-                    </div>
-                    <div className="w-8 text-right font-mono text-xs" style={{ color: cfg.color }}>{item.score_pct}</div>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link to={action.to} className="btn btn-primary">{action.cta} <ArrowRight size={16} aria-hidden="true" /></Link>
+            {action.secondary && <Link to={action.secondary.to} className="btn btn-secondary">{action.secondary.label}</Link>}
           </div>
+        </div>
+      </section>
 
-          {/* Assessment table */}
-          <div className="lg:col-span-2 glass-card p-6">
-            <div className="font-display font-semibold text-white text-sm mb-4">Assessment Results by Topic</div>
-            <div className="overflow-x-auto">
-              <table className="cyber-table">
-                <thead>
-                  <tr>
-                    <th className="text-left">Topic</th>
-                    <th className="text-left">Quiz Score</th>
-                    <th className="text-left">Predicted Level</th>
-                    <th className="text-left">Exam Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assessment.map(item => {
-                    const cfg = LEVEL_CONFIG[item.predicted_level] || LEVEL_CONFIG.beginner;
-                    return (
-                      <tr key={item.topic}>
-                        <td className="font-display font-medium text-white capitalize">{item.topic}</td>
-                        <td>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 difficulty-track">
-                              <div className="difficulty-fill" style={{ width: `${item.score_pct}%`, background: cfg.color }} />
-                            </div>
-                            <span className="font-mono text-xs" style={{ color: cfg.color }}>{item.score_pct}%</span>
+      {!hasPlan ? (
+        <section aria-labelledby="preview-title" className="mt-10 max-w-2xl">
+          <h2 id="preview-title" className="section-title">What you will see here</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-muted">
+            <li>Your next step, chosen from your own plan and results.</li>
+            <li>How many topics you have completed, and your quiz score for each topic.</li>
+            <li>How your quiz scores change from one attempt to the next.</li>
+          </ul>
+        </section>
+      ) : (
+        <>
+      {/* Progress in plain terms */}
+      <section aria-labelledby="progress-title" className="mt-10">
+        <h2 id="progress-title" className="section-title">Where you are</h2>
+        <dl className="mt-4 grid gap-8 sm:grid-cols-3">
+          <div>
+            <dt className="text-sm text-muted">Topics completed</dt>
+            <dd className="mt-1 text-3xl font-semibold tracking-tight">{hasPlan ? `${completed} of ${learningPath.length}` : 'No plan yet'}</dd>
+            {hasPlan && <dd className="mt-3"><Meter value={pathPct} label={`${completed} of ${learningPath.length} topics completed`} tone="success" /></dd>}
+            <dd className="mt-2 text-sm text-muted">Marked on your <Link to="/path">learning path</Link>.</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted">Average quiz score</dt>
+            <dd className="mt-1 text-3xl font-semibold tracking-tight">{hasResults ? `${Math.round(avgScore)}%` : 'Not taken'}</dd>
+            <dd className="mt-2 text-sm text-muted">{hasResults ? `Across ${assessment.length} topic${assessment.length === 1 ? '' : 's'}. Each score is the share of questions you answered correctly.` : 'Take the quiz to get your first score.'}</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted">Quiz attempts</dt>
+            <dd className="mt-1 text-3xl font-semibold tracking-tight">{attempts}</dd>
+            <dd className="mt-2 text-sm text-muted">{attempts > 1 ? 'See how your scores changed below.' : 'Your history appears here after more than one attempt.'}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <div className="mt-10 grid gap-10 lg:grid-cols-[1.4fr_1fr]">
+        <div className="min-w-0 space-y-10">
+          {/* Results by topic */}
+          <section aria-labelledby="results-title">
+            <h2 id="results-title" className="section-title">Quiz results by topic</h2>
+            {!hasResults ? (
+              <p className="mt-3 text-muted">{hasPlan ? <>No results yet. <Link to="/quiz">Take the quiz</Link> to see how you did in each topic.</> : 'Results appear here after you build a plan and take the quiz.'}</p>
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="table">
+                  <caption className="sr-only">Quiz score for each topic in your plan</caption>
+                  <thead>
+                    <tr><th scope="col">Topic</th><th scope="col">Score</th><th scope="col">Result</th></tr>
+                  </thead>
+                  <tbody>
+                    {assessment.map((r) => (
+                      <tr key={r.topic}>
+                        <th scope="row"><Link to={`/lesson/${encodeURIComponent(r.topic)}`} className="capitalize text-ink">{r.topic}<span className="sr-only">, open the lesson</span></Link></th>
+                        <td className="min-w-[8rem]">
+                          <div className="flex items-center gap-3">
+                            <Meter className="w-20" value={r.score_pct} label={`${r.topic} score`} tone={scoreBand(r.score_pct).tone === 'danger' ? 'warning' : scoreBand(r.score_pct).tone === 'success' ? 'success' : undefined} />
+                            <span className="tabular-nums">{r.score_pct}%</span>
                           </div>
                         </td>
-                        <td>
-                          <span className={`badge-chip border ${cfg.bg} ${cfg.border}`} style={{ color: cfg.color }}>
-                            {item.predicted_level}
-                          </span>
-                        </td>
-                        <td className="font-mono text-teal-400">{item.predicted_exam_score}%</td>
+                        <td><ScoreBadge pct={r.score_pct} /></td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Focus areas */}
-            <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
-              <div className="glass-card p-3">
-                <div className="text-xs text-slate-500 mb-1 flex items-center gap-1"><AlertTriangle size={12} aria-hidden="true" /> Weak Areas</div>
-                {!hasResults ? (
-                  <div className="text-slate-300 text-sm">No quiz results yet. <Link to="/quiz" className="text-teal-300 underline">Take the quiz</Link> to find out.</div>
-                ) : weakTopics.length ? (
-                  <div className="font-display font-medium text-amber-300 text-sm capitalize">{weakTopics.join(', ')}</div>
-                ) : (
-                  <div className="text-slate-300 text-sm">No topic scored below 45%.</div>
-                )}
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="glass-card p-3">
-                <div className="text-xs text-slate-500 mb-1 flex items-center gap-1"><Sparkles size={12} aria-hidden="true" /> Strengths</div>
-                {!hasResults ? (
-                  <div className="text-slate-300 text-sm">No quiz results yet. <Link to="/quiz" className="text-teal-300 underline">Take the quiz</Link> to find out.</div>
-                ) : strengths.length ? (
-                  <div className="font-display font-medium text-teal-300 text-sm capitalize">{strengths.join(', ')}</div>
-                ) : (
-                  <div className="text-slate-300 text-sm">No topic at 75% or above yet.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+            )}
+            {hasResults && (
+              <p className="mt-3 text-sm text-muted">
+                {weakTopics.length ? <>Needs review: <span className="capitalize text-ink">{weakTopics.join(', ')}</span>. </> : 'No topic scored below 45%. '}
+                {strengths.length ? <>Strong: <span className="capitalize text-ink">{strengths.join(', ')}</span>.</> : 'No topic is at 75% or above yet.'}
+              </p>
+            )}
+          </section>
 
-      {/* ── ANALYTICS TAB ── */}
-      {activeTab === 'analytics' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Accuracy trend line chart */}
-          <div className="glass-card p-6">
-            <div className="font-display font-semibold text-white text-sm mb-1">Accuracy Trend</div>
-            <div className="text-slate-500 text-xs mb-5">Daily quiz accuracy vs target</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={accuracyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="day" tick={{ fill: '#64748b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip content={
-                  <CustomTooltip
-                    aiFeatures={aiFeatures}
-                    mlFeatures={mlFeatures}
-                    datasetRegistry={datasetRegistry}
-                    llmMode={llmMode}
-                    datasetSources={datasetSources}
-                  />
-                } />
-                <Line type="monotone" dataKey="accuracy" stroke="#00d4ff" strokeWidth={2.5} dot={{ fill: '#00d4ff', r: 4, strokeWidth: 0 }} name="Accuracy" activeDot={{ r: 6 }} />
-                <Line type="monotone" dataKey="target" stroke="rgba(148,163,184,0.6)" strokeWidth={1.5} strokeDasharray="5 5" dot={false} name="Target" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Topic mastery bar */}
-          <div className="glass-card p-6">
-            <div className="font-display font-semibold text-white text-sm mb-1">Topic Mastery</div>
-            <div className="text-slate-500 text-xs mb-5">Quiz scores per topic</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={topicMastery} barSize={24}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="topic" tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fill: '#64748b', fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip content={
-                  <CustomTooltip
-                    aiFeatures={aiFeatures}
-                    mlFeatures={mlFeatures}
-                    datasetRegistry={datasetRegistry}
-                    llmMode={llmMode}
-                    datasetSources={datasetSources}
-                  />
-                } />
-                <Bar dataKey="mastery" name="Mastery" radius={[6, 6, 0, 0]}>
-                  {topicMastery.map((entry, i) => (
-                    <Cell key={i} fill={entry.mastery >= 75 ? '#4ade80' : entry.mastery >= 50 ? '#fbbf24' : entry.mastery >= 30 ? '#fb923c' : '#f87171'} fillOpacity={0.8} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Radar chart */}
-          <div className="glass-card p-6 lg:col-span-2">
-            <div className="font-display font-semibold text-white text-sm mb-1">Learning Radar</div>
-            <div className="text-slate-500 text-xs mb-4">Multi-dimensional knowledge coverage</div>
-            <ResponsiveContainer width="100%" height={240}>
-              <RadarChart data={radarData}>
-                <PolarGrid stroke="rgba(255,255,255,0.08)" />
-                <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 11, fontFamily: 'Space Grotesk' }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#475569', fontSize: 9 }} />
-                <Radar name="Mastery" dataKey="A" stroke="#00d4ff" fill="#00d4ff" fillOpacity={0.12} strokeWidth={2} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* ── TOPICS TAB (Heatmap) ── */}
-      {activeTab === 'topics' && (
-        <div className="glass-card p-6">
-          <div className="font-display font-semibold text-white text-sm mb-1">Weak Topic Heatmap</div>
-          <div className="text-slate-500 text-xs mb-6">Hover a cell for details. Color = mastery level.</div>
-          <HeatmapGrid assessment={assessment} />
-
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <div className="font-display font-semibold text-white text-sm mb-3">Priority Study Order</div>
-              <div className="space-y-2">
-                {[...assessment].sort((a, b) => a.score_pct - b.score_pct).map((item, i) => {
-                  const cfg = LEVEL_CONFIG[item.predicted_level] || LEVEL_CONFIG.beginner;
-                  return (
-                    <div key={item.topic} className="flex items-center gap-3 p-3 rounded-xl bg-white/4 border border-white/8">
-                      <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-xs font-mono text-slate-400">{i + 1}</div>
-                      <div className="flex-1">
-                        <div className="text-white text-sm capitalize font-medium">{item.topic}</div>
-                        <div className="text-xs" style={{ color: cfg.color }}>{item.predicted_level}</div>
-                      </div>
-                      <div className="font-mono text-sm font-bold" style={{ color: cfg.color }}>{item.score_pct}%</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div>
-              <div className="font-display font-semibold text-white text-sm mb-3">Recommended Next Steps</div>
-              <div className="space-y-3">
-                {weakTopics.slice(0, 4).map(topic => (
-                  <div key={topic} className="p-3 rounded-xl bg-red-400/5 border border-red-400/20">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                      <span className="text-red-400 text-sm font-semibold capitalize">{topic}</span>
-                    </div>
-                    <div className="text-slate-500 text-xs">Focus area: go to Resources for curated videos and courses</div>
-                  </div>
-                ))}
-                {weakTopics.length === 0 && (
-                  <div className="p-4 rounded-xl bg-teal-400/5 border border-teal-400/20 text-teal-300 text-sm">
-                    {hasResults
-                      ? 'No topic scored below 45%. Consider moving on to deeper resources.'
-                      : 'Take the quiz first. Your focus areas will appear here.'}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODEL TAB ── */}
-      {activeTab === 'model' && (
-        <div className="space-y-6">
-          {/* Model explanation */}
-          <div className="glass-card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Info size={16} className="text-teal-400" />
-              <div className="font-display font-semibold text-white text-sm">Why this prediction?</div>
-            </div>
-            <div className="p-4 rounded-xl bg-teal-400/5 border border-teal-400/20 text-sm text-slate-300 leading-relaxed mb-5">
-              The model classified you as <span className="text-teal-400 font-semibold">{overallLevel}</span> based on:
-              your quiz score of <span className="font-mono text-white">{avgScore}%</span>, topic count of{' '}
-              <span className="font-mono text-white">{assessment.length}</span>, and performance distribution across weak
-              vs strong topics. The <span className="text-teal-400">{modelName}</span> algorithm was selected by AutoML
-              as the best performing classifier on the training set.
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {modernFeatures.map(f => (
-                <div key={f.name} className="p-3 rounded-xl bg-white/4 border border-white/8">
-                  <div className="font-display font-semibold text-teal-400 text-sm mb-1">{f.name}</div>
-                  <div className="text-slate-400 text-xs leading-relaxed">{f.why}</div>
+          {/* Real history, or an honest empty state */}
+          <section aria-labelledby="history-title">
+            <h2 id="history-title" className="section-title">How your scores are changing</h2>
+            {trend === null ? <p className="mt-3 text-muted" role="status">Loading your history...</p>
+              : trend.length < 2 ? (
+                <p className="mt-3 text-muted">
+                  {trend.length === 0 ? 'No quiz attempts yet.' : 'You have one attempt so far.'} A chart needs at least two attempts. Take a new quiz after some study to see your trend.
+                </p>
+              ) : (
+                <div className="mt-3">
+                  <QuizTrendChart trend={trend} />
+                  <p className="mt-2 text-sm text-muted">Average score across all topics in each quiz attempt. <Link to="/progress">See the full table on the Progress page.</Link></p>
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
+          </section>
+        </div>
 
-          {/* Model leaderboard */}
-          <div className="glass-card p-6">
-            <div className="font-display font-semibold text-white text-sm mb-4">Classification Benchmark</div>
-            <div className="space-y-3">
-              {Object.entries(modelScores).map(([name, score], i) => {
-                const pct = parseFloat(String(score).replace('%', ''));
-                const isTop = i === 0;
-                return (
-                  <div key={name} className={`flex items-center gap-4 p-3 rounded-xl border transition-all
-                    ${isTop ? 'bg-teal-400/8 border-teal-400/25' : 'bg-white/4 border-white/8'}`}>
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold
-                      ${isTop ? 'bg-teal-400 text-dark-300' : 'bg-white/10 text-slate-400'}`}>
-                      {i + 1}
+        {/* The plan at a glance */}
+        <aside aria-labelledby="plan-title" className="min-w-0">
+          <h2 id="plan-title" className="section-title">Your plan</h2>
+          {!hasPlan ? (
+            <p className="mt-3 text-muted">No topics yet. <Link to="/goals">Build your plan</Link>.</p>
+          ) : (
+            <>
+              <ol className="mt-3 divide-y divide-line rounded-xl border border-line bg-surface">
+                {learningPath.map((s) => (
+                  <li key={s.topic} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <Link to={`/lesson/${encodeURIComponent(s.topic)}`} className="font-medium capitalize text-ink no-underline hover:text-accent hover:underline"><span className="mr-2 text-muted">{s.order}.</span>{s.topic}</Link>
                     </div>
-                    <div className="flex-1">
-                      <div className={`text-sm font-display font-semibold ${isTop ? 'text-teal-400' : 'text-white'}`}>{name}</div>
-                      <div className="difficulty-track mt-1 w-full">
-                        <div className="difficulty-fill" style={{
-                          width: `${pct}%`,
-                          background: isTop ? '#14b8a6' : 'rgba(148,163,184,0.4)'
-                        }} />
-                      </div>
-                    </div>
-                    <div className={`font-mono font-bold text-sm ${isTop ? 'text-teal-400' : 'text-slate-400'}`}>{score}</div>
-                    {isTop && <Star size={14} className="text-yellow-400" />}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="glass-card p-5 lg:col-span-2">
-          <div className="font-display font-semibold text-white text-sm mb-3">AI + ML capabilities</div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <div className="text-teal-400 text-xs mb-2">AI features</div>
-              <div className="space-y-2">{(aiFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
-            </div>
-            <div>
-              <div className="text-teal-400 text-xs mb-2">ML features</div>
-              <div className="space-y-2">{(mlFeatures || []).map((f, i) => <div key={i} className="text-sm text-slate-300">• {f}</div>)}</div>
-            </div>
-          </div>
-        </div>
-        <div className="glass-card p-5">
-          <div className="font-display font-semibold text-white text-sm mb-3">Data + tutor status</div>
-          <div className="text-sm text-slate-300 mb-2">Tutor mode: <span className="text-teal-400">{llmMode}</span></div>
-          <div className="text-sm text-slate-300 mb-2">Dataset sources:</div>
-          <div className="flex flex-wrap gap-2 mb-3">{(datasetSources || []).map((s, i) => <span key={i} className="badge-chip">{s}</span>)}</div>
-          <div className="text-xs text-slate-500">Registry items: {datasetRegistry?.length || 0}</div>
-        </div>
+                    <StatusBadge status={s.status} />
+                  </li>
+                ))}
+              </ol>
+              <Link to="/path" className="btn btn-secondary btn-sm mt-3">Open the full path <ArrowRight size={14} aria-hidden="true" /></Link>
+            </>
+          )}
+        </aside>
       </div>
 
+      {/* Technical detail lives here, labelled, and out of the way */}
+      <details className="mt-12 rounded-xl border border-line bg-surface p-5">
+        <summary className="cursor-pointer font-medium text-ink">How these numbers are made</summary>
+        <div className="mt-4 max-w-3xl space-y-3 text-sm text-muted">
+          <p><span className="font-medium text-ink">Quiz score.</span> The share of questions you answered correctly in that topic. Results: Strong is 75% or more, Developing is 45% to 74%, Needs review is below 45%.</p>
+          <p><span className="font-medium text-ink">Topic level.</span> The labels beginner, intermediate and advanced on your path and resources come from a small model ({modelName || 'not loaded'}) that was trained on a generated example dataset of {dataInfo?.rows || 0} rows. {dataInfo?.real_data_used ? 'Some real data was also used.' : 'It was not trained on real students.'} Treat these labels as suggestions.</p>
+          {modelScores && Object.keys(modelScores).length > 0 && (
+            <div>
+              <p className="font-medium text-ink">Models compared on that example data</p>
+              <table className="table mt-2 max-w-md">
+                <caption className="sr-only">Accuracy of each model on the generated example dataset</caption>
+                <thead><tr><th scope="col">Model</th><th scope="col">Accuracy on example data</th></tr></thead>
+                <tbody>
+                  {Object.entries(modelScores).sort((a, b) => b[1] - a[1]).map(([name, score]) => (
+                    <tr key={name}><th scope="row" className="!font-normal">{name}</th><td className="tabular-nums">{typeof score === 'number' ? `${(score * 100).toFixed(1)}%` : score}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="mt-2">These scores say how well each model learned the generated example data. They do not show how well it would predict real learners.</p>
+            </div>
+          )}
+        </div>
+      </details>
+        </>
+      )}
     </div>
   );
 }

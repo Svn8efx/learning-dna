@@ -57,57 +57,57 @@ export default function AccessibilityPanel({ open, onClose, onReadPage, voiceLis
     <div className="a11y-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="a11y-title" className="a11y-dialog">
         <div className="flex items-start justify-between gap-4 mb-4">
-          <h2 id="a11y-title" ref={headingRef} tabIndex={-1} className="font-display font-bold text-xl text-white">
+          <h2 id="a11y-title" ref={headingRef} tabIndex={-1} className="text-xl font-semibold text-ink">
             Accessibility settings
           </h2>
-          <button type="button" onClick={onClose} className="btn-cyber" aria-label="Close accessibility settings">
-            <X size={16} />
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-icon" aria-label="Close accessibility settings">
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
-        <p className="text-sm text-slate-300 mb-4">Changes apply straight away and are saved for your next visit.</p>
+        <p className="mb-5 text-sm text-muted">Changes apply straight away and are saved for your next visit.</p>
 
         <div className="mb-5">
-          <label htmlFor="font-scale" className="block text-sm font-semibold text-white mb-1">
+          <label htmlFor="font-scale" className="label">
             Text size: {prefs.font_scale}%
           </label>
           <input id="font-scale" type="range" min="100" max="200" step="10" value={prefs.font_scale}
-            onChange={(e) => updatePrefs({ font_scale: Number(e.target.value) })} className="w-full" />
+            onChange={(e) => updatePrefs({ font_scale: Number(e.target.value) })} className="w-full accent-[rgb(var(--c-accent))]" />
         </div>
 
         <div className="mb-5">
-          <label htmlFor="speech-rate" className="block text-sm font-semibold text-white mb-1">
+          <label htmlFor="speech-rate" className="label">
             Speaking speed: {prefs.speech_rate.toFixed(2)}x
           </label>
           <input id="speech-rate" type="range" min="0.5" max="1.5" step="0.05" value={prefs.speech_rate}
-            onChange={(e) => updatePrefs({ speech_rate: Number(e.target.value) })} className="w-full" />
+            onChange={(e) => updatePrefs({ speech_rate: Number(e.target.value) })} className="w-full accent-[rgb(var(--c-accent))]" />
         </div>
 
         <fieldset className="mb-5">
-          <legend className="text-sm font-semibold text-white mb-2">Display and interaction</legend>
+          <legend className="label">Display and interaction</legend>
           <div className="space-y-3">
             {TOGGLES.map(([key, label, help]) => (
               <div key={key} className="flex items-start gap-3">
                 <input id={`pref-${key}`} type="checkbox" className="a11y-check" checked={Boolean(prefs[key])}
                   aria-describedby={`pref-${key}-help`} onChange={(e) => updatePrefs({ [key]: e.target.checked })} />
-                <label htmlFor={`pref-${key}`} className="text-sm text-white">
+                <label htmlFor={`pref-${key}`} className="text-sm text-ink">
                   <span className="font-semibold">{label}</span>
-                  <span id={`pref-${key}-help`} className="block text-slate-300 text-xs mt-0.5">{help}</span>
+                  <span id={`pref-${key}-help`} className="mt-0.5 block text-sm text-muted">{help}</span>
                 </label>
               </div>
             ))}
           </div>
           {prefs.voice_commands && !voiceSupported && (
-            <p role="alert" className="text-xs text-amber-300 mt-2">Voice commands need Chrome or Edge. Your browser does not support them.</p>
+            <p role="alert" className="notice notice-warning mt-3">Voice commands need Chrome or Edge. Your browser does not support them.</p>
           )}
           {prefs.voice_commands && voiceSupported && voiceError && (
-            <p role="alert" className="text-xs text-amber-300 mt-2">{VOICE_ERRORS[voiceError] || `Voice commands stopped (${voiceError}). Please try Google Chrome or Microsoft Edge.`}</p>
+            <p role="alert" className="notice notice-warning mt-3">{VOICE_ERRORS[voiceError] || `Voice commands stopped (${voiceError}). Please try Google Chrome or Microsoft Edge.`}</p>
           )}
           {prefs.voice_commands && voiceSupported && voiceError && onVoiceRetry && (
-            <button type="button" className="btn-cyber mt-2" onClick={onVoiceRetry}>Try voice commands again</button>
+            <button type="button" className="btn btn-secondary btn-sm mt-2" onClick={onVoiceRetry}>Try voice commands again</button>
           )}
           {prefs.voice_commands && voiceSupported && !voiceError && (
-            <p className="text-xs text-slate-300 mt-2 flex items-center gap-1">
-              <Mic size={12} /> {voiceListening ? 'Listening. Try "go to quiz", "scroll down", "click" and a button name, "read page", or "help".' : 'Starting the microphone. Allow access if your browser asks.'}
+            <p className="mt-3 flex items-center gap-1.5 text-sm text-muted">
+              <Mic size={14} aria-hidden="true" /> {voiceListening ? 'Listening. Try "go to quiz", "scroll down", "click" and a button name, "read page", or "help".' : 'Starting the microphone. Allow access if your browser asks.'}
             </p>
           )}
         </fieldset>
@@ -115,22 +115,22 @@ export default function AccessibilityPanel({ open, onClose, onReadPage, voiceLis
         <div className="mb-5 flex flex-wrap gap-2">
           {speechSupported ? (
             speaking
-              ? <button type="button" className="btn-cyber" onClick={stopSpeaking}>Stop reading</button>
-              : <button type="button" className="btn-cyber-solid" onClick={() => { onReadPage(); onClose(); }}>Read this page aloud</button>
-          ) : <p className="text-xs text-amber-300">Your browser cannot read text aloud.</p>}
-          <button type="button" className="btn-cyber" onClick={() => updatePrefs({
+              ? <button type="button" className="btn btn-secondary btn-sm" onClick={stopSpeaking}>Stop reading</button>
+              : <button type="button" className="btn btn-primary btn-sm" onClick={() => { onReadPage(); onClose(); }}>Read this page aloud</button>
+          ) : <p className="text-sm text-warning">Your browser cannot read text aloud.</p>}
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => updatePrefs({
             font_scale: 100, high_contrast: false, reduce_motion: false, text_to_speech: false, speech_rate: 1,
             captions: false, visual_alerts: true, large_targets: false, keyboard_mode: false, voice_commands: false })}>
             Reset to defaults
           </button>
         </div>
 
-        <details className="text-sm text-slate-200">
-          <summary className="cursor-pointer font-semibold text-white">Keyboard shortcuts</summary>
-          <p className="text-xs text-slate-300 my-2">Active when "Keyboard shortcuts" is on.</p>
+        <details className="text-sm">
+          <summary className="cursor-pointer font-medium text-ink">Keyboard shortcuts</summary>
+          <p className="my-2 text-sm text-muted">Active when "Keyboard shortcuts" is on.</p>
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
             {SHORTCUTS.map(([keys, action]) => (
-              <React.Fragment key={keys}><dt className="font-mono text-xs text-teal-300">{keys}</dt><dd>{action}</dd></React.Fragment>
+              <React.Fragment key={keys}><dt className="font-mono text-xs text-accent">{keys}</dt><dd>{action}</dd></React.Fragment>
             ))}
           </dl>
         </details>

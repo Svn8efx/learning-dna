@@ -1,10 +1,5 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  mockAssessment, mockProfile, mockModelScores,
-  mockAccuracyTrend, mockLearningPath,
-  mockResources, mockChatHistory, mockModernFeatures,
-} from '../utils/mockData';
 import { apiFetch } from '../utils/api';
 
 const STORAGE_KEY = 'learning_dna_context_v1';
@@ -38,6 +33,7 @@ function loadStored() {
 export function useFlaskData() {
   const [state, setState] = useState({ ...fallbackState, ...loadStored() });
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);   // true once the first request has finished (success or failure)
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -53,6 +49,7 @@ export function useFlaskData() {
       return null;
     } finally {
       setLoading(false);
+      setLoaded(true);
     }
   }, []);
 
@@ -74,7 +71,6 @@ export function useFlaskData() {
       : 0;
     const strengths = state.assessment.filter(r => r.score_pct >= 75).map(r => r.topic);
     const weakTopics = state.assessment.filter(r => r.score_pct < 45).map(r => r.topic);
-    const accuracyTrend = mockAccuracyTrend;
     const topicMastery = state.assessment.map(r => ({
       topic: r.topic.length > 8 ? r.topic.slice(0, 8) + '.' : r.topic,
       mastery: r.score_pct,
@@ -84,12 +80,11 @@ export function useFlaskData() {
       avgScore,
       strengths,
       weakTopics,
-      accuracyTrend,
       topicMastery,
-      chatHistory: mockChatHistory,
       loading,
+      loaded,
       refresh,
       savePartial,
     };
-  }, [state, loading, refresh, savePartial]);
+  }, [state, loading, loaded, refresh, savePartial]);
 }
