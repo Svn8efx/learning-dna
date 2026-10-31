@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Dna, Search, Bell, Github, Accessibility, Volume2, VolumeX, KeyRound, Sun, Moon, Menu, X, ChevronDown } from 'lucide-react';
+import { Dna, Search, Bell, Accessibility, Volume2, VolumeX, KeyRound, Sun, Moon, Menu, X, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useVoiceCommands } from '../hooks/useVoiceCommands';
@@ -340,11 +340,10 @@ export default function Layout() {
       <main id="main-content" ref={mainRef} tabIndex={-1} className="flex-1 outline-none"><Outlet /></main>
 
       <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted sm:px-6 lg:px-8">
-          <p>Learning DNA is a community-service project of K.R. Mangalam University.</p>
-          <p className="flex items-center gap-4">
-            <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-muted underline hover:text-ink">
-              <Github size={14} aria-hidden="true" /> Source code <span className="sr-only">(opens in a new tab)</span>
+        <div className="mx-auto flex max-w-[90rem] justify-end px-4 py-6 text-sm sm:px-6 lg:px-8">
+          <p className="text-muted sm:text-right">
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className="text-muted underline hover:text-ink">
+              Learning DNA is a community-service project of K.R. Mangalam University. <span className="sr-only">(source code, opens in a new tab)</span>
             </a>
           </p>
         </div>
