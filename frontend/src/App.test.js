@@ -191,3 +191,24 @@ test('layout groups the navigation, keeps every route, and the theme toggle work
   expect(document.documentElement.dataset.theme).toBe('dark');
   document.documentElement.dataset.theme = 'light';
 });
+
+test('notifications open as a small floating panel and close on Escape or outside click', async () => {
+  const c = await mount(
+    <AccessibilityProvider><MemoryRouter initialEntries={['/dashboard']}>
+      <Routes><Route element={<Layout />}><Route path="dashboard" element={<p>x</p>} /></Route></Routes>
+    </MemoryRouter></AccessibilityProvider>
+  );
+  const bell = c.querySelector('button[data-notif-toggle][aria-expanded]');
+  expect(bell.getAttribute('aria-expanded')).toBe('false');
+  await act(async () => { bell.click(); });
+  const panel = c.querySelector('section[aria-label="Notifications"]');
+  expect(panel).not.toBeNull();
+  expect(panel.className).toMatch(/absolute/);
+  expect(bell.getAttribute('aria-expanded')).toBe('true');
+  await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+  expect(c.querySelector('section[aria-label="Notifications"]')).toBeNull();
+  await act(async () => { bell.click(); });
+  expect(c.querySelector('section[aria-label="Notifications"]')).not.toBeNull();
+  await act(async () => { document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
+  expect(c.querySelector('section[aria-label="Notifications"]')).toBeNull();
+});

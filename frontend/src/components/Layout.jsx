@@ -46,6 +46,7 @@ export default function Layout() {
   const mainRef = useRef(null);
   const settingsButtonRef = useRef(null);
   const accountRef = useRef(null);
+  const notifRef = useRef(null);
   const firstRender = useRef(true);
   const { prefs, updatePrefs, speak, stopSpeaking, speaking, speechSupported, announce, logEvent } = useAccessibility();
 
@@ -85,6 +86,16 @@ export default function Layout() {
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [accountOpen]);
+
+  // Notifications float under the bell: close on a click outside (the bell buttons toggle it themselves)
+  useEffect(() => {
+    if (drawer !== 'notifications') return undefined;
+    const onDown = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target) && !e.target.closest('[data-notif-toggle]')) setDrawer(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [drawer]);
 
   // Escape closes the search or notifications panel, or the small-screen menu
   useEffect(() => {
@@ -187,7 +198,7 @@ export default function Layout() {
             </button>
 
             <div className="hidden items-center gap-1 min-[1000px]:flex">
-              <button type="button" className={iconBtn} aria-label={notifications.length ? `Notifications, ${notifications.length}` : 'Notifications'} aria-expanded={drawer === 'notifications'} onClick={() => setDrawer(drawer === 'notifications' ? null : 'notifications')}>
+              <button type="button" className={iconBtn} aria-label={notifications.length ? `Notifications, ${notifications.length}` : 'Notifications'} aria-expanded={drawer === 'notifications'} data-notif-toggle onClick={() => setDrawer(drawer === 'notifications' ? null : 'notifications')}>
                 <Bell size={18} aria-hidden="true" />
                 {notifications.length > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-ink" aria-hidden="true">{notifications.length}</span>}
               </button>
@@ -244,7 +255,7 @@ export default function Layout() {
             <div className="divider mt-2 pt-3">
               <p className="eyebrow px-3 pb-1">Tools</p>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setDrawer('notifications'); setMenuOpen(false); }}>
+                <button type="button" className="btn btn-secondary btn-sm" data-notif-toggle onClick={() => { setDrawer(drawer === 'notifications' ? null : 'notifications'); setMenuOpen(false); }}>
                   <Bell size={16} aria-hidden="true" /> Notifications{notifications.length ? ` (${notifications.length})` : ''}
                 </button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={toggleTheme}>
@@ -295,17 +306,28 @@ export default function Layout() {
         )}
 
         {drawer === 'notifications' && (
-          <div className="border-t border-line bg-sunken">
-            <section aria-label="Notifications" className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between">
+          <div className="relative mx-auto max-w-6xl">
+            <section
+              ref={notifRef}
+              aria-label="Notifications"
+              className="absolute right-4 top-2 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-line-strong bg-surface p-3 shadow-lg sm:right-6 lg:right-8"
+            >
+              <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold">Notifications</h2>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDrawer(null)}>Close</button>
+                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDrawer(null)} aria-label="Close notifications">
+                  <X size={16} aria-hidden="true" />
+                </button>
               </div>
               {notifications.length ? (
-                <ul className="mt-2 space-y-2">
-                  {notifications.map((n, i) => <li key={i} className="text-sm"><span className="font-medium">{n.title}:</span> <span className="text-muted">{n.message}</span></li>)}
+                <ul className="mt-1 max-h-64 divide-y divide-line overflow-y-auto">
+                  {notifications.map((n, i) => (
+                    <li key={i} className="py-2 text-sm first:pt-1 last:pb-0">
+                      <span className="block font-medium text-ink">{n.title}</span>
+                      <span className="block text-muted">{n.message}</span>
+                    </li>
+                  ))}
                 </ul>
-              ) : <p className="mt-2 text-sm text-muted">No notifications yet.</p>}
+              ) : <p className="mt-1 text-sm text-muted">No notifications yet.</p>}
             </section>
           </div>
         )}
