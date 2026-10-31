@@ -179,7 +179,7 @@ export default function Layout() {
 
       <header className="sticky top-0 z-40 border-b border-line bg-surface">
         {/* Row 1: brand and utility actions */}
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-14 max-w-[90rem] items-center gap-2 px-4 sm:px-6 lg:px-8">
           <Link to="/" className="mr-2 flex min-h-[2.5rem] items-center gap-2 text-base font-semibold text-ink no-underline">
             <Dna size={22} className="text-accent" aria-hidden="true" /> Learning DNA
           </Link>
@@ -205,9 +205,6 @@ export default function Layout() {
               <button type="button" className={iconBtn} onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
                 {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
               </button>
-              <a className={iconBtn} href={REPO_URL} target="_blank" rel="noopener noreferrer" aria-label="Source code on GitHub (opens in a new tab)">
-                <Github size={18} aria-hidden="true" />
-              </a>
               <div className="relative" ref={accountRef}>
                 <button type="button" className="btn btn-ghost btn-sm" aria-expanded={accountOpen} aria-controls="account-menu" onClick={() => setAccountOpen(o => !o)}>
                   <KeyRound size={16} aria-hidden="true" /> Account <ChevronDown size={14} aria-hidden="true" />
@@ -231,10 +228,10 @@ export default function Layout() {
 
         {/* Row 2: primary navigation (wide screens) */}
         <div className="hidden border-t border-line min-[1000px]:block">
-          <nav aria-label="Main" className="mx-auto flex max-w-6xl items-center px-4 sm:px-6 lg:px-8">
+          <nav aria-label="Main" className="mx-auto flex max-w-[90rem] items-center justify-between px-4 sm:px-6 lg:px-8">
             {NAV_GROUPS.map((group, gi) => (
               <React.Fragment key={group.label}>
-                {gi > 0 && <span aria-hidden="true" className="mx-2 h-5 w-px bg-line" />}
+                {gi > 0 && <span aria-hidden="true" className="h-5 w-px bg-line" />}
                 {group.items.map(([to, label]) => <NavLink key={to} to={to} className={navLinkClass}>{label}</NavLink>)}
               </React.Fragment>
             ))}
@@ -268,7 +265,6 @@ export default function Layout() {
                     {speaking ? <VolumeX size={16} aria-hidden="true" /> : <Volume2 size={16} aria-hidden="true" />} {speaking ? 'Stop' : 'Listen'}
                   </button>
                 )}
-                <a className="btn btn-secondary btn-sm" href={REPO_URL} target="_blank" rel="noopener noreferrer"><Github size={16} aria-hidden="true" /> GitHub <span className="sr-only">(opens in a new tab)</span></a>
               </div>
             </div>
           </div>
@@ -277,7 +273,7 @@ export default function Layout() {
         {/* Search and notifications open as a panel under the header */}
         {drawer === 'search' && (
           <div className="border-t border-line bg-sunken">
-            <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[90rem] px-4 py-4 sm:px-6 lg:px-8">
               <form onSubmit={runSearch} role="search" className="flex gap-2">
                 <label htmlFor="site-search" className="sr-only">Search resources</label>
                 <input id="site-search" className="input" autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search videos, courses and datasets" />
@@ -306,7 +302,7 @@ export default function Layout() {
         )}
 
         {drawer === 'notifications' && (
-          <div className="relative mx-auto max-w-6xl">
+          <div className="relative mx-auto max-w-[90rem]">
             <section
               ref={notifRef}
               aria-label="Notifications"
@@ -334,7 +330,7 @@ export default function Layout() {
 
         {prefs.voice_commands && lastHeard && (
           <div className="border-t border-line bg-sunken" role="status">
-            <p className="mx-auto max-w-6xl px-4 py-1.5 text-sm text-muted sm:px-6 lg:px-8">{listening ? 'Listening. ' : ''}{lastHeard}</p>
+            <p className="mx-auto max-w-[90rem] px-4 py-1.5 text-sm text-muted sm:px-6 lg:px-8">{listening ? 'Listening. ' : ''}{lastHeard}</p>
           </div>
         )}
       </header>
