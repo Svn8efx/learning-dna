@@ -169,6 +169,7 @@ python -m learning_dna.ml.train_need_model
 | `STORE_BACKEND` | `auto`, `mongo` or `memory` |
 | `OPENAI_API_KEY` | *Optional.* Only used for typed tutor questions that match nothing (`OPENAI_MODEL` can change the model) |
 | `YOUTUBE_API_KEY` | *Optional.* Live video search instead of the built-in catalog |
+| `TRUSTED_PROXY_HOPS` | *Optional, default `0`.* How many proxies in front of the API add to `X-Forwarded-For` and can be trusted. Used only to count wrong resume codes per visitor. Leave at `0` until you have checked it on the live site (see `docs/FINAL_AUDIT.md`, section 6); a wrong number puts every visitor in one shared bucket. |
 
 > 🔐 Never commit `.env` files or connection strings.
 
@@ -187,8 +188,8 @@ Latest results (see `docs/FINAL_AUDIT.md` for exactly what each one proves):
 
 | Check | Result |
 |---|---|
-| Backend tests (in-memory and an emulated MongoDB) | 140 passed |
-| Frontend tests | 36 passed |
+| Backend tests (in-memory and an emulated MongoDB) | 149 passed |
+| Frontend tests | 37 passed |
 | Production build in strict CI mode | no warnings |
 | axe-core accessibility scan, 13 pages, light / dark / high contrast, 320 / 390 / 1280 px | 0 violations |
 | Browser tests with a *mocked* speech service | 45 of 45 |
@@ -207,7 +208,7 @@ We would rather be clear than overclaim:
 - 🎧 **JAWS / NVDA testing is not yet complete**, and no formal WCAG audit has been done. Automated scans (axe-core) and keyboard tests pass, but they do not replace testing with a screen reader. See `docs/ACCESSIBILITY.md`.
 - 🎙️ **Voice commands and read-aloud have been tested only with a mocked speech service**, not with a real microphone or speaker. They work only in Chrome and Edge and need internet.
 - 🗄️ The database tests used an emulated MongoDB, and nothing in `docs/FINAL_AUDIT.md` was verified on the live site.
-- 🔑 The resume code is the only login. It is rate-limited, but anyone who has a code can open that progress.
+- 🔑 The resume code is the only login. Wrong guesses are rate-limited (10 per visitor per 10 minutes, 60 per minute for the whole server), but anyone who has a code can open that progress, and the limit may be bypassable by calling the API address directly. See `docs/FINAL_AUDIT.md`.
 - 💬 Captions appear only if the YouTube video provides them.
 - 🚫 No audio description, sign language or cognitive-accessibility features yet.
 - ♿ "Wheelchair accessibility" is interpreted as **motor accessibility of the software** (keyboard, voice, large targets).

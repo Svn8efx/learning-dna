@@ -23,7 +23,7 @@ Unexpected server errors return a generic `500` message; the details are written
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/account/code` | Returns this student's code, e.g. `maple-river-tiger-42`; creates one the first time. `{ok, code}` |
-| POST | `/api/account/resume` | Body `{code}` (spaces, capitals and punctuation are tolerated). Switches this browser to the profile that owns the code. `404` if unknown, `400` if the format is wrong, `429` after too many wrong guesses (10 per 10 minutes per visitor, 60 per minute for the whole server) |
+| POST | `/api/account/resume` | Body `{code}` (spaces, capitals and punctuation are tolerated). Switches this browser to the profile that owns the code. `404` if unknown, `400` if the format is wrong, `429` after too many wrong guesses (10 per 10 minutes per visitor, 60 per minute for the whole server; visitors are told apart by IP address, see `TRUSTED_PROXY_HOPS` in the README) |
 | POST | `/api/account/logout` | Clears the session cookie so the browser forgets the student. The data stays in MongoDB under the code |
 
 A code is three different words from a 283-word list plus a two-digit number, about 31 bits. Anyone who knows it can open that profile,

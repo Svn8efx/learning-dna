@@ -337,3 +337,60 @@ def test_preferences_report_whether_anything_is_saved(client):
     assert saved["saved"] is True
     again = client.get("/api/accessibility/preferences").get_json()
     assert again["saved"] is True and again["preferences"]["high_contrast"] is True
+
+
+# ---- Resume-code rate limit: who counts as "the same visitor" ----
+
+def _key(client, forwarded=None, remote="10.9.9.9", hops=0):
+    from learning_dna import config
+    old = config.TRUSTED_PROXY_HOPS
+    config.TRUSTED_PROXY_HOPS = hops
+    try:
+        headers = {"X-Forwarded-For": forwarded} if forwarded is not None else {}
+        with client.application.test_request_context("/api/account/resume", headers=headers, environ_base={"REMOTE_ADDR": remote}):
+            return account_routes._client_key()
+    finally:
+        config.TRUSTED_PROXY_HOPS = old
+
+
+def test_default_key_is_the_first_forwarded_address(client):
+    assert _key(client, "203.0.113.7, 10.1.1.1") == "203.0.113.7"
+    assert _key(client) == "10.9.9.9"                                   # no header: the connecting address
+
+
+def test_junk_in_the_forwarded_header_cannot_make_new_keys(client):
+    assert _key(client, "not-an-ip") == "10.9.9.9"
+    assert _key(client, "x" * 5000) == "10.9.9.9"
+    assert _key(client, "<script>, 1.2.3.4") == "10.9.9.9"
+
+
+def test_trusted_proxy_hops_ignore_what_the_visitor_wrote(client):
+    # a visitor writes 6.6.6.6; the one trusted proxy then records the visitor's real address, 198.51.100.4
+    assert _key(client, "6.6.6.6, 198.51.100.4", hops=1) == "198.51.100.4"
+    assert _key(client, "1.1.1.1, 2.2.2.2, 6.6.6.6, 198.51.100.4", hops=1) == "198.51.100.4"
+    # two trusted proxies: the address before the last one
+    assert _key(client, "6.6.6.6, 198.51.100.4, 192.0.2.50", hops=2) == "198.51.100.4"
+    # header shorter than the trusted chain (a direct request): do not trust it
+    assert _key(client, "6.6.6.6", hops=2) == "10.9.9.9"
+    assert _key(client, hops=1) == "10.9.9.9"
+
+
+def test_rotating_fake_addresses_do_not_help_when_proxy_hops_are_set(client):
+    from learning_dna import config
+    config.TRUSTED_PROXY_HOPS = 1
+    try:
+        codes = [client.post("/api/account/resume", json={"code": "maple-river-tiger-42"},
+                             headers={"X-Forwarded-For": f"10.0.0.{i}, 198.51.100.4"}).status_code for i in range(12)]
+    finally:
+        config.TRUSTED_PROXY_HOPS = 0
+    assert codes[:10] == [404] * 10 and codes[10:] == [429, 429]
+
+
+def test_limiter_drops_quiet_visitors():
+    now = [0.0]
+    lim = resume_code.AttemptLimiter(per_key=5, per_key_window=10, total=10_000, clock=lambda: now[0])
+    for i in range(600):
+        lim.record_failure(f"10.0.{i // 250}.{i % 250}")
+    now[0] = 100.0
+    lim.record_failure("10.1.1.1")
+    assert len(lim._by_key) < 10

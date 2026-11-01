@@ -66,3 +66,6 @@ class AttemptLimiter:
         with self._lock:
             self._all.append(now)
             self._by_key.setdefault(key, deque()).append(now)
+            if len(self._by_key) > 500:      # forget visitors who have been quiet, so the table cannot grow for ever
+                for old in [k for k, q in self._by_key.items() if not q or now - q[-1] > self.per_key_window]:
+                    del self._by_key[old]

@@ -1,5 +1,9 @@
 """Resume codes: save progress without a password and continue on another device."""
+import ipaddress
+
 from flask import Blueprint, jsonify, request, session
+
+from learning_dna import config
 
 from learning_dna.http_utils import json_body
 
@@ -11,8 +15,23 @@ limiter = AttemptLimiter()
 
 
 def _client_key() -> str:
-    forwarded = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    return forwarded or request.remote_addr or "unknown"
+    """Who is guessing? The visitor's IP address, used only to count wrong codes.
+
+    X-Forwarded-For can be written by the visitor, so with TRUSTED_PROXY_HOPS = N we use the address that the
+    N-th proxy from the right recorded, which a visitor cannot choose. With 0 (the default) the first address is
+    used, as before. Anything that is not a real IP address is ignored, so junk cannot create endless new keys.
+    """
+    parts = [p.strip() for p in request.headers.get("X-Forwarded-For", "").split(",") if p.strip()]
+    hops = config.TRUSTED_PROXY_HOPS
+    candidate = ""
+    if parts and hops == 0:
+        candidate = parts[0]
+    elif len(parts) >= hops > 0:
+        candidate = parts[len(parts) - hops]
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return request.remote_addr or "unknown"
 
 
 @bp.route("/api/account/code")

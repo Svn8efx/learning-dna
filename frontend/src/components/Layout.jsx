@@ -54,6 +54,7 @@ export default function Layout() {
   const mainRef = useRef(null);
   const settingsButtonRef = useRef(null);
   const accountRef = useRef(null);
+  const accountMenuRef = useRef(null);
   const notifRef = useRef(null);
   const firstRender = useRef(true);
   const { prefs, updatePrefs, speak, stopSpeaking, speaking, speechSupported, announce, logEvent } = useAccessibility();
@@ -88,7 +89,10 @@ export default function Layout() {
   // Close the account menu on outside click or Escape
   useEffect(() => {
     if (!accountOpen) return undefined;
-    const onDown = (e) => { if (accountRef.current && !accountRef.current.contains(e.target)) setAccountOpen(false); };
+    const onDown = (e) => {
+      const inside = (accountRef.current && accountRef.current.contains(e.target)) || (accountMenuRef.current && accountMenuRef.current.contains(e.target));
+      if (!inside) setAccountOpen(false);
+    };
     const onKey = (e) => { if (e.key === 'Escape') { setAccountOpen(false); accountRef.current?.querySelector('button')?.focus(); } };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -222,14 +226,6 @@ export default function Layout() {
                 <button type="button" className="btn btn-ghost btn-sm" aria-expanded={accountOpen} aria-controls="account-menu" onClick={() => setAccountOpen(o => !o)}>
                   <KeyRound size={16} aria-hidden="true" /> Account <ChevronDown size={14} aria-hidden="true" />
                 </button>
-                {accountOpen && (
-                  <div id="account-menu" className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-line bg-surface p-1.5 shadow-lg">
-                    <Link to="/my-code" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink no-underline hover:bg-sunken">
-                      <KeyRound size={16} aria-hidden="true" /> My code
-                    </Link>
-                    <LogoutButton className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sunken" />
-                  </div>
-                )}
               </div>
             </div>
 
@@ -310,6 +306,18 @@ export default function Layout() {
                   ) : <p className="text-sm text-muted">No results found.</p>}
                 </section>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* The Account menu opens under the whole header, like the notifications panel, so it never covers the page links */}
+        {accountOpen && (
+          <div className="relative mx-auto max-w-[90rem]">
+            <div id="account-menu" ref={accountMenuRef} className="absolute right-4 top-2 z-50 w-56 rounded-xl border border-line bg-surface p-1.5 shadow-lg sm:right-6 lg:right-8">
+              <Link to="/my-code" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-ink no-underline hover:bg-sunken">
+                <KeyRound size={16} aria-hidden="true" /> My code
+              </Link>
+              <LogoutButton className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-sunken" />
             </div>
           </div>
         )}

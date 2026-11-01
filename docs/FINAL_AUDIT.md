@@ -18,13 +18,13 @@ Audit of the Learning DNA project after the redesign: features, API, voice, end-
 
 ## 1. Summary
 
-- **11 bugs were found and fixed**, each with a regression test or a browser check (section 4).
-- **Backend:** 140 tests pass. Against the original code, 90 of the new regression tests fail, so they do catch the bugs.
-- **Frontend:** 36 tests pass. The production build compiles with no warnings in strict CI mode.
+- **13 problems were found and fixed**, each with a regression test or a browser check (section 4). The resume-code rate limit is now safer and configurable, but whether it is fully closed on your live site depends on a setting and a one-minute check that only you can do (section 6, item 3).
+- **Backend:** 149 tests pass. Against the original code, 90 of the regression tests written for the first 11 problems fail, so they do catch the bugs.
+- **Frontend:** 37 tests pass. The production build compiles with no warnings in strict CI mode.
 - **Accessibility scan (axe-core, WCAG 2.0/2.1/2.2 A and AA tags):** 0 violations on all 13 pages, in light, dark and high-contrast modes, at 1280, 390 and 320 px wide (117 combinations).
 - **Mocked-speech browser tests:** 45 of 45 checks pass. **Journey tests:** 46 of 46. **Scripted flow:** 21 of 21.
 - **Real microphone, real speech output, NVDA/JAWS, the live site and the live database were not tested.**
-- Several deployment and security risks remain (section 6). The most important are the guessable fallback `SECRET_KEY`, the session cookie without a `Secure` flag, and the resume-code rate limit.
+- Several deployment and security risks remain (section 6). The most important are the guessable fallback `SECRET_KEY`, the session cookie without a `Secure` flag, and the resume-code rate limit setting.
 
 ---
 
@@ -112,6 +112,8 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 | 9 | Settings stored in the browser were replaced by defaults when the server had nothing saved (new session, server restart, or a failed save). This also made my first high-contrast scan invalid, because the large-text setting was being thrown away. | High (accessibility) | The server now says whether anything is `saved`; the browser keeps its own copy otherwise and saves it. Older backends without the flag behave as before. | Backend test; two frontend tests; browser |
 | 10 | When the server failed or could not be reached, Dashboard, Learning path, Quiz and Resources said "You have not built a study plan yet". A learner could rebuild and overwrite a saved plan. | High | Error message, "Your saved plan is not lost", and a Try again button. | Frontend tests (2); journey J4 |
 | 11 | **Layout.** The header overflowed sideways at phone width with 150-200 % text; at 320 px with large text, Learning path, Quiz, Lessons, Goals, Home and Progress also scrolled sideways. Two scrollable tables were not reachable by keyboard at 320 px. | Medium (accessibility) | The header and its button group wrap; narrow-screen rules let columns shrink; both tables are focusable regions with names. | axe scans at 320 px; width check on 13 pages at 100/150/200 % |
+| 12 | **The Account menu covered the right-hand page links** (Tutor, Progress) at 1280 px while open; axe flagged the partly hidden Tutor link. | Low (accessibility) | The menu now opens under the whole header, like the notifications panel, so it never covers the links. Escape and outside click still close it and Escape returns focus to the Account button. | Frontend test; open-panel scan now 24 of 24; scripted flow 21 of 21 |
+| 13 | **Rate-limit key.** The resume-code limiter used the first `X-Forwarded-For` value even if it was junk, so a script could create endless new "visitors", and the table of visitors never shrank. | Low-Medium | Only real IP addresses are accepted (otherwise the connecting address is used); quiet visitors are forgotten; new setting `TRUSTED_PROXY_HOPS` makes the limiter use the address that a trusted proxy recorded instead of one the visitor wrote. Default `0` keeps the old behaviour, so nothing changes until you set it. | 5 backend tests |
 
 ---
 
@@ -119,13 +121,13 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 
 | Check | Result |
 |---|---|
-| Backend `pytest` (in-memory and `mongomock`) | **140 passed** |
+| Backend `pytest` (in-memory and `mongomock`) | **149 passed** |
 | The new backend tests against the original code | 90 failed (so they detect the bugs) |
-| Frontend `npm test` | **36 passed** (3 suites) |
+| Frontend `npm test` | **37 passed** (3 suites) |
 | Frontend production build, `CI=true` | Compiled successfully, no warnings (this also runs ESLint) |
 | `ruff` (pyflakes rules, star-import and unused-import rules ignored) | 3 notes, all unused local variables (`learning.py`, `catalog_service.py`, a test). The same count was in the original code; none affect behaviour. Left as is. |
 | axe-core scan, 13 pages x 3 widths x 3 modes (light, dark, high contrast with 150 % text, large targets and reduced motion) | **117 combinations, 0 violations, no sideways scroll, no console errors** |
-| Open-panel scan (notifications, account menu, search, mobile menu) x light/dark x 1280/1000/390 px | 22 of 24 clean; the other 2 are the known note below |
+| Open-panel scan (notifications, account menu, search, mobile menu) x light/dark x 1280/1000/390 px | **24 of 24 clean** (before the Account menu fix, 22 of 24) |
 | Scripted flow (`interact.mjs`) | **21 of 21** |
 | Mocked-speech browser suite (`voice.mjs`) | **45 of 45** |
 | Journey suite (`journeys.mjs`) | **46 of 46** |
@@ -133,7 +135,7 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 | Static checks | No `dangerouslySetInnerHTML`, `eval` or `innerHTML` in the frontend. No keys, passwords or tokens in code or docs; secrets come only from environment variables. |
 | `npm audit --omit=dev` | 78 findings, no critical. Most are in the react-scripts build tooling, which is not shipped to the browser. See section 6. |
 
-**Known note.** At 1280 px, with the Account menu open, the menu covers the right-hand navigation links. axe flags the one link left partly visible (target size). Escape or a click elsewhere closes the menu. Not changed.
+**Fixed since the first draft of this report:** the Account menu used to cover the right-hand page links at 1280 px (bug 12).
 
 ### API and security probes (local, with test data only)
 
@@ -152,7 +154,12 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 
 1. **`SECRET_KEY` has a public default** (`learning-dna-dev-secret`). If it is not set on Render, session cookies can be forged. **Check this first.**
 2. **The session cookie has no `Secure` flag.** It is sent only over HTTPS in practice (Vercel), but the flag is not set.
-3. **Resume-code rate limit.** It uses the first `X-Forwarded-For` value, which a client can fake, so the per-address limit can be bypassed; only the server-wide limit (60 failures a minute) remains. That same cap lets anyone block *everyone's* resume for a minute. Honest users on shared school Wi-Fi share one address and can be locked out after 10 wrong tries. The limiter lives in each server process, so several workers multiply the limits. A safe fix depends on how Render and Vercel pass the address, so it was not guessed.
+3. **Resume-code rate limit: partly fixed, one check left for you.**
+   - *What changed:* junk in `X-Forwarded-For` is ignored, quiet visitors are forgotten, and the new `TRUSTED_PROXY_HOPS` setting lets the limiter ignore addresses the visitor wrote. The default (`0`) behaves as before.
+   - *Why I did not simply turn it on:* Render's documentation and staff say the first address is the real client, but a Render user's own test found that Render only appends to what the client sends. Vercel (which sits in front of your API) is documented to overwrite the header, but I cannot see the real chain from here, and a wrong number would put every visitor into one shared bucket. So the right number has to be confirmed on the live site.
+   - *One-minute check (browser console on the live site, on any page):* run the loop below. If you get `404` ten times and then `429`, rotating fake addresses did **not** help, so the public path through Vercel is protected. If you never get `429`, tell me the output and we will set `TRUSTED_PROXY_HOPS`.
+     `for (let i = 0; i < 13; i++) { const r = await fetch('/api/account/resume', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Forwarded-For': '10.1.1.' + i}, body: JSON.stringify({code: 'maple-river-tiger-42'})}); console.log(i, r.status); }`
+   - *Still true:* the server-wide cap (60 wrong codes a minute) lets anyone block *everyone's* resume for a minute, and honest users on shared school Wi-Fi share one address and can be locked out after 10 wrong tries. Someone who calls the Render address directly (not through Vercel) may still be able to fake the header. The limiter lives in each server process, so several workers multiply the limits.
 4. **Codes are the only login.** There is no password. Anyone with the code opens the progress (the page says so). The code space is about 2 billion, protected only by the rate limit above.
 5. **Memory fallback.** If MongoDB is not configured, data is kept in memory and is lost on restart. Check the Render settings.
 6. **Dependencies.** `npm audit` reports 78 findings, mostly build tooling. `react-router` 6.30.6 has two advisories fixed only in version 7 (open redirect through backslashes in links; server-side-render hydration). The app navigates only to fixed routes and does not use server rendering, so exposure is low, but a major upgrade is future work.

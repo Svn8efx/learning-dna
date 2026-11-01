@@ -288,3 +288,22 @@ test.each([
   await act(async () => { retry.click(); });
   expect(calls.n).toBeGreaterThan(before);
 });
+
+test('account menu opens under the header, lists My code and Log out, and closes on Escape and on an outside click', async () => {
+  const c = await mount(layoutRoutes);
+  const button = Array.from(c.querySelectorAll('header button')).find((b) => /Account/.test(b.textContent));
+  await act(async () => { button.click(); });
+  const menu = c.querySelector('#account-menu');
+  expect(menu).not.toBeNull();
+  expect(menu.textContent).toMatch(/My code/);
+  expect(menu.textContent).toMatch(/Log out/);
+  expect(button.parentElement.contains(menu)).toBe(false);          // not inside the button row: it must not cover the page links
+  await act(async () => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+  expect(c.querySelector('#account-menu')).toBeNull();
+  expect(document.activeElement).toBe(button);
+  await act(async () => { button.click(); });
+  await act(async () => { c.querySelector('#account-menu').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });   // a click inside keeps it open
+  expect(c.querySelector('#account-menu')).not.toBeNull();
+  await act(async () => { document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
+  expect(c.querySelector('#account-menu')).toBeNull();
+});
