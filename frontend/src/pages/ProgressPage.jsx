@@ -73,7 +73,7 @@ export default function ProgressPage() {
                 : <p className="rounded-lg border border-line bg-sunken p-4 text-sm text-muted">One attempt so far. A chart needs at least two attempts, so take a new quiz after some study to see how you are changing.</p>}
               <p className="mt-2 text-sm text-muted">Each point is the average score across all topics in one quiz attempt, from 0% to 100%.</p>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" role="region" aria-label="Quiz attempts table" tabIndex={0}>
               <table className="table">
                 <caption className="mb-2 text-left text-sm text-muted">The same numbers as a table</caption>
                 <thead><tr><th scope="col">Attempt</th><th scope="col">Date</th><th scope="col">Average score</th><th scope="col">Settings on</th></tr></thead>

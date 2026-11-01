@@ -6,6 +6,8 @@ Answers are self-declared and can be changed at any time.
 """
 from flask import Blueprint, jsonify, request
 
+from learning_dna.http_utils import json_body
+
 from learning_dna.accessibility import clean_preferences, preferences_from_intake
 from learning_dna.ml.need_model import FEATURE_LABELS, classifier, encode_intake
 from learning_dna.monitoring import record_event
@@ -23,7 +25,7 @@ LEVELS = {"none", "some", "high"}
 
 
 def _clean_intake(data: dict) -> dict:
-    pick = lambda key: data.get(key) if data.get(key) in LEVELS else "none"  # noqa: E731
+    pick = lambda key: data.get(key) if isinstance(data.get(key), str) and data.get(key) in LEVELS else "none"  # noqa: E731
     return {
         "vision": pick("vision"), "hearing": pick("hearing"), "motor": pick("motor"),
         "prefers_audio": bool(data.get("prefers_audio")),
@@ -35,7 +37,7 @@ def _clean_intake(data: dict) -> dict:
 
 @bp.route("/api/profile/intake", methods=["POST"])
 def api_profile_intake():
-    intake = _clean_intake(request.get_json(silent=True) or {})
+    intake = _clean_intake(json_body())
     assessment = state.get("assessment") or []
     quiz_pct = (sum(r["score_pct"] for r in assessment) / len(assessment)) if assessment else None
 

@@ -5,12 +5,12 @@ import { useFlaskData } from '../hooks/useFlaskData';
 import { apiFetch } from '../utils/api';
 import VideoPlayerModal from '../components/VideoPlayerModal';
 import LoadingScreen from '../components/LoadingScreen';
-import { PageHeader, Notice, EmptyState, Meter, StatusBadge, STATUS, capitalize } from '../components/ui';
+import { PageHeader, Notice, EmptyState, LoadFailed, Meter, StatusBadge, STATUS, capitalize } from '../components/ui';
 
 const DOT_ICON = { completed: Check, 'in-progress': CircleDot, recommended: Circle, locked: Lock };
 
 export default function LearningPathPage() {
-  const { learningPath, profile, refresh, loaded } = useFlaskData();
+  const { learningPath, profile, refresh, loaded, error: loadError } = useFlaskData();
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [saving, setSaving] = useState(false);
   const [topicResources, setTopicResources] = useState(null);
@@ -98,6 +98,7 @@ export default function LearningPathPage() {
   };
 
   if (!loaded) return <LoadingScreen label="Loading your learning path" />;
+  if (loadError && !learningPath.length) return <div className="page-narrow"><PageHeader title="Learning path" /><LoadFailed message={loadError} onRetry={refresh} /></div>;
 
   if (!learningPath.length) {
     return (

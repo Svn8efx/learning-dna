@@ -1,6 +1,8 @@
 """Resume codes: save progress without a password and continue on another device."""
 from flask import Blueprint, jsonify, request, session
 
+from learning_dna.http_utils import json_body
+
 from learning_dna.resume_code import AttemptLimiter, generate_code, is_valid_format, normalize_code
 from learning_dna.store import state, store
 
@@ -32,7 +34,7 @@ def api_account_code():
 @bp.route("/api/account/resume", methods=["POST"])
 def api_account_resume():
     """Switches this browser to the profile that owns the code."""
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     code = normalize_code(data.get("code"))
     if not is_valid_format(code):
         return jsonify({"ok": False, "error": "That does not look like a code. A code has three words and a two-digit number, like maple-river-tiger-42."}), 400

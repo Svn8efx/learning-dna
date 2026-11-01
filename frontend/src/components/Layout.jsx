@@ -3,7 +3,7 @@ import { Outlet, Link, NavLink, useLocation, useNavigate } from 'react-router-do
 import { Dna, Search, Bell, Accessibility, Volume2, VolumeX, KeyRound, Sun, Moon, Menu, X, ChevronDown } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
-import { useVoiceCommands } from '../hooks/useVoiceCommands';
+import { useVoiceCommands, voiceSupported } from '../hooks/useVoiceCommands';
 import AccessibilityPanel from './AccessibilityPanel';
 import LogoutButton from './LogoutButton';
 
@@ -29,6 +29,14 @@ const SHORTCUT_TARGETS = {
 };
 
 const iconBtn = 'btn btn-ghost btn-icon relative';
+
+const VOICE_PROBLEMS = {
+  'not-allowed': 'the microphone is blocked',
+  'service-not-allowed': 'this browser blocks the speech service',
+  'audio-capture': 'no microphone was found',
+  network: 'the speech service could not be reached',
+  'language-not-supported': 'this browser does not support the speech language we use',
+};
 
 export default function Layout() {
   const [search, setSearch] = useState('');
@@ -139,6 +147,11 @@ export default function Layout() {
     setLastHeard(message || (matched ? `Heard: "${phrase}"` : `Did not understand: "${phrase}"`));
   });
 
+  // Voice commands are switched on but cannot work (blocked microphone, unsupported browser): say so outside the dialog too
+  const voiceProblem = !prefs.voice_commands ? '' : !voiceSupported
+    ? 'this browser does not support them, so please use Chrome or Edge'
+    : voiceError ? (VOICE_PROBLEMS[voiceError] || `something went wrong (${voiceError})`) : '';
+
   // Keyboard shortcuts: Alt + Shift + letter
   useEffect(() => {
     if (!prefs.keyboard_mode) return undefined;
@@ -179,12 +192,12 @@ export default function Layout() {
 
       <header className="sticky top-0 z-40 border-b border-line bg-surface">
         {/* Row 1: brand and utility actions */}
-        <div className="mx-auto flex h-14 max-w-[90rem] items-center gap-2 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-[3.5rem] max-w-[90rem] flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1 sm:px-6 lg:px-8">
           <Link to="/" className="mr-2 flex min-h-[2.5rem] items-center gap-2 text-base font-semibold text-ink no-underline">
             <Dna size={22} className="text-accent" aria-hidden="true" /> Learning DNA
           </Link>
 
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1">
             <button type="button" className={iconBtn} aria-label="Search resources" aria-expanded={drawer === 'search'} onClick={() => setDrawer(drawer === 'search' ? null : 'search')}>
               <Search size={18} aria-hidden="true" />
             </button>
@@ -325,6 +338,15 @@ export default function Layout() {
                 </ul>
               ) : <p className="mt-1 text-sm text-muted">No notifications yet.</p>}
             </section>
+          </div>
+        )}
+
+        {voiceProblem && (
+          <div className="border-t border-line bg-sunken" role="alert">
+            <div className="mx-auto flex max-w-[90rem] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5 text-sm text-muted sm:px-6 lg:px-8">
+              <p>Voice commands are not working: {voiceProblem}. The keyboard and mouse still work.</p>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanelOpen(true)}>Open accessibility settings</button>
+            </div>
           </div>
         )}
 

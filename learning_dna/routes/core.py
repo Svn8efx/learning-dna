@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from learning_dna.accessibility import clean_preferences, is_personalised
 from learning_dna.learning import *  # noqa: F401,F403
 from learning_dna.learning import _dashboard_payload, _default_path_progress
+from learning_dna.http_utils import clean_text, json_body
 from learning_dna import tutor_faq
 from learning_dna.monitoring import record_event
 from learning_dna.services.llm_tutor_service import generate_tutor_reply
@@ -34,9 +35,9 @@ def api_status():
 
 @bp.route('/api/start', methods=['POST'])
 def api_start():
-    data = request.get_json(silent=True) or {}
-    syllabus_text = (data.get('syllabus_text') or '').strip()
-    target_goal = (data.get('target_goal') or '').strip()
+    data = json_body()
+    syllabus_text = clean_text(data.get('syllabus_text'), 50000)
+    target_goal = clean_text(data.get('target_goal'), 1000)
     topics = find_learning_order(parse_topics(syllabus_text, target_goal))
     quiz_seed = int(time.time() * 1000)
     quiz_items = get_topic_quiz(topics, quiz_seed=quiz_seed)
@@ -82,8 +83,10 @@ def api_quiz():
             state['quiz_items'] = get_topic_quiz(profile['topics'], quiz_seed=quiz_seed)
         return jsonify({'ok': True, 'quizItems': state.get('quiz_items', []), 'topics': profile['topics']})
 
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     answers = data.get('answers') or {}
+    if not isinstance(answers, dict):
+        return jsonify({'ok': False, 'error': 'Send the answers as an object, one entry per question.'}), 400
     quiz_items = state.get('quiz_items') or get_topic_quiz(profile['topics'], quiz_seed=profile.get('quiz_seed'))
     results = build_topic_results(profile['topics'], answers, quiz_items)
     profile.setdefault('activity', {'quiz_attempts': 0, 'completed_actions': 0})
@@ -151,7 +154,7 @@ def api_tutor():
     Answers are pre-written (see tutor_faq.py). A live AI model is used only for typed questions that
     match nothing AND only if OPENAI_API_KEY is set on the server.
     """
-    data = request.get_json(silent=True) or {}
+    data = json_body()
     question_id = str(data.get('question_id') or '').strip()
     raw_question = str(data.get('question') or '').strip()
     profile = state.get('profile') or {}

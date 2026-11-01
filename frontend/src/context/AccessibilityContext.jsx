@@ -56,17 +56,6 @@ export function AccessibilityProvider({ children }) {
   // Apply settings to the page whenever they change
   useEffect(() => { applyToDocument(prefs); }, [prefs]);
 
-  // Load the saved settings from the backend (the server copy wins once the student has saved any)
-  useEffect(() => {
-    apiFetch('/api/accessibility/preferences')
-      .then((data) => {
-        const merged = { ...DEFAULT_PREFS, ...data.preferences };
-        setPrefs(merged);
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
-      })
-      .catch(() => {});
-  }, []);
-
   // Decorative icons should be ignored by screen readers
   useEffect(() => {
     const hideIcons = () => {
@@ -92,6 +81,24 @@ export function AccessibilityProvider({ children }) {
       }).catch(() => {});
     }, 400);
   }, []);
+
+  // Load the saved settings from the backend (the server copy wins once the student has saved any)
+  useEffect(() => {
+    apiFetch('/api/accessibility/preferences')
+      .then((data) => {
+        if (data.saved === false) {
+          // The server has nothing saved for this visitor yet (new session, or an earlier save failed):
+          // keep the settings in this browser instead of replacing them with defaults, and save them.
+          const local = prefsRef.current;
+          if (JSON.stringify(local) !== JSON.stringify(DEFAULT_PREFS)) savePrefs(local);
+          return;
+        }
+        const merged = { ...DEFAULT_PREFS, ...data.preferences };
+        setPrefs(merged);
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(merged));
+      })
+      .catch(() => {});
+  }, [savePrefs]);
 
   const updatePrefs = useCallback((patch) => {
     const next = { ...prefsRef.current, ...patch };

@@ -56,3 +56,17 @@ test('finds and clicks a button by its spoken name', () => {
   expect(clicked).toBe('a');
   expect(clickByVoice('banana')).toBe('');
 });
+
+test('commands that change settings must be the whole phrase, so ordinary talk does nothing', () => {
+  expect(parseVoiceCommand('open settings')).toEqual({ action: 'openSettings' });
+  expect(parseVoiceCommand('accessibility settings')).toEqual({ action: 'openSettings' });
+  expect(parseVoiceCommand('make the text bigger')).toEqual({ action: 'biggerText' });
+  expect(parseVoiceCommand('increase text size')).toEqual({ action: 'biggerText' });
+  expect(parseVoiceCommand('make text smaller')).toEqual({ action: 'smallerText' });
+  expect(parseVoiceCommand('reset text size')).toEqual({ action: 'normalText' });
+  expect(parseVoiceCommand('high contrast off')).toEqual({ action: 'contrast', on: false });
+  [
+    'my accessibility homework is due', 'I changed my settings yesterday', 'the bigger text is hard to read',
+    'we need normal text in the report', 'turn on high contrast mode later please', 'what are the settings for the exam',
+  ].forEach((said) => expect(parseVoiceCommand(said)).toBeNull());
+});

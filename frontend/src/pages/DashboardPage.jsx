@@ -5,7 +5,7 @@ import { useFlaskData } from '../hooks/useFlaskData';
 import { apiFetch } from '../utils/api';
 import LoadingScreen from '../components/LoadingScreen';
 import QuizTrendChart from '../components/QuizTrendChart';
-import { PageHeader, Meter, StatusBadge, ScoreBadge, scoreBand, capitalize } from '../components/ui';
+import { PageHeader, Meter, StatusBadge, ScoreBadge, LoadFailed, scoreBand, capitalize } from '../components/ui';
 
 /** Decide the one most useful next step from the learner's real state. */
 function nextAction({ hasPlan, hasResults, learningPath, weakTopics }) {
@@ -34,7 +34,7 @@ function nextAction({ hasPlan, hasResults, learningPath, weakTopics }) {
 }
 
 export default function DashboardPage() {
-  const { assessment, profile, learningPath, avgScore, weakTopics, strengths, modelName, modelScores, dataInfo, loaded } = useFlaskData();
+  const { assessment, profile, learningPath, avgScore, weakTopics, strengths, modelName, modelScores, dataInfo, loaded, error: loadError, refresh } = useFlaskData();
   const [trend, setTrend] = useState(null);
 
   useEffect(() => {
@@ -42,6 +42,7 @@ export default function DashboardPage() {
   }, []);
 
   if (!loaded) return <LoadingScreen label="Loading your dashboard" />;
+  if (loadError && !profile?.topics?.length) return <div className="page"><PageHeader title="Dashboard" /><LoadFailed message={loadError} onRetry={refresh} /></div>;
 
   const hasPlan = Boolean(profile?.topics?.length);
   const hasResults = assessment.length > 0;
@@ -116,7 +117,7 @@ export default function DashboardPage() {
             {!hasResults ? (
               <p className="mt-3 text-muted">{hasPlan ? <>No results yet. <Link to="/quiz">Take the quiz</Link> to see how you did in each topic.</> : 'Results appear here after you build a plan and take the quiz.'}</p>
             ) : (
-              <div className="mt-3 overflow-x-auto">
+              <div className="mt-3 overflow-x-auto" role="region" aria-label="Quiz score for each topic" tabIndex={0}>
                 <table className="table">
                   <caption className="sr-only">Quiz score for each topic in your plan</caption>
                   <thead>

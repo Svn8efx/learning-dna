@@ -212,3 +212,79 @@ test('notifications open as a small floating panel and close on Escape or outsid
   await act(async () => { document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
   expect(c.querySelector('section[aria-label="Notifications"]')).toBeNull();
 });
+
+function mockPreferences(body) {
+  const base = global.fetch;
+  global.fetch = jest.fn((url, opts) => (url.includes('/api/accessibility/preferences') && !(opts && opts.method === 'PUT')
+    ? Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(body)) })
+    : base(url, opts)));
+}
+
+const layoutRoutes = (
+  <AccessibilityProvider><MemoryRouter initialEntries={['/dashboard']}>
+    <Routes><Route element={<Layout />}><Route path="dashboard" element={<p>x</p>} /></Route></Routes>
+  </MemoryRouter></AccessibilityProvider>
+);
+
+test('when voice commands are on but this browser has no speech recognition, the header says so and offers settings', async () => {
+  mockPreferences({ ok: true, saved: true, preferences: { voice_commands: true } });   // jsdom has no SpeechRecognition
+  const c = await mount(layoutRoutes);
+  const alert = c.querySelector('header [role="alert"]');
+  expect(alert).not.toBeNull();
+  expect(alert.textContent).toMatch(/Voice commands are not working/);
+  expect(alert.textContent).toMatch(/keyboard and mouse still work/);
+  expect(Array.from(alert.querySelectorAll('button')).some((b) => /accessibility settings/i.test(b.textContent))).toBe(true);
+});
+
+test('no voice warning appears when voice commands are off', async () => {
+  mockPreferences({ ok: true, saved: true, preferences: { voice_commands: false } });
+  const c = await mount(layoutRoutes);
+  expect(c.querySelector('header [role="alert"]')).toBeNull();
+});
+
+test('settings kept in this browser are not replaced by defaults when the server has nothing saved', async () => {
+  localStorage.setItem('learning_dna_a11y_v1', JSON.stringify({ high_contrast: true, font_scale: 140 }));
+  mockPreferences({ ok: true, saved: false, preferences: { high_contrast: false, font_scale: 100 } });
+  await mount(layoutRoutes);
+  expect(document.documentElement.dataset.contrast).toBe('high');
+  expect(document.documentElement.style.fontSize).toBe('140%');
+  localStorage.removeItem('learning_dna_a11y_v1');
+});
+
+test('settings saved on the server still win over this browser copy', async () => {
+  localStorage.setItem('learning_dna_a11y_v1', JSON.stringify({ high_contrast: false, font_scale: 100 }));
+  mockPreferences({ ok: true, saved: true, preferences: { high_contrast: true, font_scale: 160 } });
+  await mount(layoutRoutes);
+  expect(document.documentElement.dataset.contrast).toBe('high');
+  expect(document.documentElement.style.fontSize).toBe('160%');
+  localStorage.removeItem('learning_dna_a11y_v1');
+});
+
+// A server problem must never look like "you have no plan yet" (a learner could rebuild and overwrite a saved plan).
+const contextFails = (counter) => {
+  const base = global.fetch;
+  global.fetch = jest.fn((url, opts) => {
+    if (url.includes('/api/context')) {
+      counter.n += 1;
+      return Promise.resolve({ ok: false, status: 500, text: () => Promise.resolve(JSON.stringify({ ok: false, error: 'Something went wrong on the server. Please try again.' })) });
+    }
+    return base(url, opts);
+  });
+};
+
+test.each([
+  ['dashboard', () => <DashboardPage />, /Build your study plan|You have not built a study plan yet/],
+  ['learning path', () => <LearningPathPage />, /You do not have a path yet/],
+])('%s: a failed load shows an error with Try again, not the "no plan" empty state', async (_name, page, emptyText) => {
+  sessionStorage.clear();
+  const calls = { n: 0 };
+  contextFails(calls);
+  const c = await mount(<AccessibilityProvider><MemoryRouter>{page()}</MemoryRouter></AccessibilityProvider>);
+  expect(c.querySelector('[role="alert"]').textContent).toMatch(/could not load your plan/i);
+  expect(c.textContent).toMatch(/saved plan is not lost/i);
+  expect(c.textContent).not.toMatch(emptyText);
+  const before = calls.n;
+  const retry = Array.from(c.querySelectorAll('button')).find((b) => /try again/i.test(b.textContent));
+  await act(async () => { retry.click(); });
+  expect(calls.n).toBeGreaterThan(before);
+});

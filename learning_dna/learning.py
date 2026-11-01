@@ -127,15 +127,12 @@ def _coerce_path_progress(topics: list[str], stored: dict | None) -> dict[str, s
         for topic, status in stored.items():
             if topic in progress and status in {"completed", "in-progress", "recommended", "locked"}:
                 progress[topic] = status
-    unlocked_seen = False
+    # The first topic that is not completed is always open. Nothing else opens just because the path was read:
+    # this function runs on every page load, so it must give the same answer when it is run again.
     for topic in topics:
-        if progress[topic] == "completed":
-            unlocked_seen = True
-            continue
-        if not unlocked_seen and progress[topic] == "locked":
-            progress[topic] = "recommended"
-            unlocked_seen = True
-        elif unlocked_seen and progress[topic] == "locked":
+        if progress[topic] != "completed":
+            if progress[topic] == "locked":
+                progress[topic] = "recommended"
             break
     completed_count = sum(1 for s in progress.values() if s == "completed")
     if completed_count < len(topics):
@@ -208,6 +205,15 @@ def _resolve_topic_for_resources(requested_topic: str, profile: dict) -> str | N
     return next((t for t, status in _coerce_path_progress(profile['topics'], profile.get('path_progress', {})).items() if status != 'locked'), profile['topics'][0])
 
 
+def _finite(value) -> float:
+    """A usable number for progress maths: text, None, NaN and infinity count as 0."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return number if number == number and number not in (float('inf'), float('-inf')) else 0.0
+
+
 def _activity_metrics(profile: dict, assessment: list[dict]) -> dict:
     topics = profile.get('topics', [])
     completed_topics = sum(1 for status in profile.get('path_progress', {}).values() if status == 'completed')
@@ -219,7 +225,7 @@ def _activity_metrics(profile: dict, assessment: list[dict]) -> dict:
     for topic, topic_data in profile.get('video_activity', {}).items():
         for rec in topic_data.values():
             if rec.get('watched_pct') is not None:
-                video_values.append(rec['watched_pct'])
+                video_values.append(_finite(rec['watched_pct']))
     video_pct = round(sum(video_values) / max(len(video_values), 1), 1) if video_values else 0.0
 
     course_clicks = 0
@@ -471,7 +477,7 @@ def _build_learning_path(profile: dict, assessment: list[dict]) -> list[dict]:
         course_activity = profile.get('course_activity', {}).get(topic, {})
         video_progress = 0
         if video_activity:
-            video_progress = int(max((item.get('watched_pct') or 0) for item in video_activity.values()))
+            video_progress = int(max(_finite(item.get('watched_pct')) for item in video_activity.values()))
         course_progress = 0
         if course_activity:
             course_completions = sum(1 for item in course_activity.values() if item.get('completed'))

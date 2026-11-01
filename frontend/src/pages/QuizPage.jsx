@@ -4,13 +4,13 @@ import { ArrowLeft, ArrowRight, Check, RefreshCcw } from 'lucide-react';
 import LoadingScreen from '../components/LoadingScreen';
 import { useFlaskData } from '../hooks/useFlaskData';
 import { apiFetch } from '../utils/api';
-import { PageHeader, Notice, Meter, EmptyState } from '../components/ui';
+import { PageHeader, Notice, Meter, EmptyState, LoadFailed } from '../components/ui';
 
 const DIFFICULTY = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced' };
 
 export default function QuizPage() {
   const navigate = useNavigate();
-  const { quizItems, savePartial, refresh, profile, loaded } = useFlaskData();
+  const { quizItems, savePartial, refresh, profile, loaded, error: loadError } = useFlaskData();
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -77,6 +77,7 @@ export default function QuizPage() {
   };
 
   if (!loaded || (loading && !total)) return <LoadingScreen label="Preparing your quiz" />;
+  if (loadError && !hasPlan) return <div className="page-narrow"><PageHeader title="Quiz" /><LoadFailed message={loadError} onRetry={refresh} /></div>;
 
   if (!total) {
     return (

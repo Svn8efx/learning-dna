@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ExternalLink, FolderOpen, Play, Wrench } from 'lucide-react';
 import { useFlaskData } from '../hooks/useFlaskData';
 import LoadingScreen from '../components/LoadingScreen';
-import { PageHeader, EmptyState, capitalize } from '../components/ui';
+import { PageHeader, EmptyState, LoadFailed, capitalize } from '../components/ui';
 
 function youtubeEmbed(url) {
   if (!url) return '';
@@ -64,7 +64,7 @@ function ResourceRow({ item }) {
 }
 
 export default function ResourcesPage() {
-  const { resources, loaded } = useFlaskData();
+  const { resources, loaded, error: loadError, refresh } = useFlaskData();
   const [query, setQuery] = useState('');
   const [topic, setTopic] = useState('all');
   const [level, setLevel] = useState('all');
@@ -87,6 +87,7 @@ export default function ResourcesPage() {
   }, [resources, topic, level, type, query]);
 
   if (!loaded) return <LoadingScreen label="Loading resources" />;
+  if (loadError && !resources.length) return <div className="page-narrow"><PageHeader title="Resources" /><LoadFailed message={loadError} onRetry={refresh} /></div>;
 
   if (!resources.length) {
     return (

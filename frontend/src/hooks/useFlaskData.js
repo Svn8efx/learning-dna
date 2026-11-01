@@ -34,18 +34,21 @@ export function useFlaskData() {
   const [state, setState] = useState({ ...fallbackState, ...loadStored() });
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);   // true once the first request has finished (success or failure)
+  const [error, setError] = useState('');          // why the last load failed, so a server problem is not shown as "no plan yet"
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const data = await apiFetch('/api/context');
+      setError('');
       setState(prev => {
         const next = { ...prev, ...data };
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
         return next;
       });
       return data;
-    } catch {
+    } catch (err) {
+      setError(err.message || 'The server did not answer.');
       return null;
     } finally {
       setLoading(false);
@@ -83,8 +86,9 @@ export function useFlaskData() {
       topicMastery,
       loading,
       loaded,
+      error,
       refresh,
       savePartial,
     };
-  }, [state, loading, loaded, refresh, savePartial]);
+  }, [state, loading, loaded, error, refresh, savePartial]);
 }

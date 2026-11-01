@@ -3,6 +3,9 @@
 All endpoints return JSON with `"ok": true|false`. The browser must send cookies (`credentials: "include"`);
 the session cookie identifies the student. Errors look like `{"ok": false, "error": "message"}`.
 
+Request bodies must be JSON objects and at most 1 MB: anything else gets `400` (not an object) or `413` (too large).
+Unexpected server errors return a generic `500` message; the details are written to the server log only.
+
 ## Core (inherited, adapted)
 | Method | Path | Purpose |
 |---|---|---|
@@ -45,6 +48,7 @@ Response: `needProfile` (`mode` = `audio_first | captioned_visual | hands_free |
 **GET / PUT `/api/accessibility/preferences`** - body for PUT is any subset of:
 `font_scale` (100-200), `high_contrast`, `reduce_motion`, `text_to_speech`, `speech_rate` (0.5-1.5), `captions`,
 `visual_alerts`, `large_targets`, `keyboard_mode`, `voice_commands`. Values are validated and clamped; unknown keys are ignored.
+The reply also has `saved`: `false` until this student has stored settings, so the browser keeps its own copy instead of replacing it with defaults.
 
 **GET `/api/content`** - list of lessons. **GET `/api/content/<topic>`** - lesson `{title, sections[], transcript, reading_minutes}`; 404 if unknown.
 

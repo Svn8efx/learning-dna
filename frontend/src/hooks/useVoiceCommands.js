@@ -65,12 +65,13 @@ export function parseVoiceCommand(raw) {
 
   if (/^(?:please )?read (?:the |this )?page|^read aloud|^read this/.test(phrase)) return { action: 'readPage' };
   if (/^stop(?: reading)?$/.test(phrase)) return { action: 'stopReading' };
-  if (/(?:bigger|larger|increase) text/.test(phrase)) return { action: 'biggerText' };
-  if (/(?:smaller|decrease) text/.test(phrase)) return { action: 'smallerText' };
-  if (/(?:normal|default|reset) text/.test(phrase)) return { action: 'normalText' };
-  if (/high contrast on|turn on high contrast/.test(phrase)) return { action: 'contrast', on: true };
-  if (/high contrast off|turn off high contrast/.test(phrase)) return { action: 'contrast', on: false };
-  if (/accessibility|settings/.test(phrase)) return { action: 'openSettings' };
+  // These must be the whole phrase, so ordinary talk that happens to contain "settings" or "bigger text" does nothing.
+  if (/^(?:please )?(?:(?:bigger|larger|increase) text(?: size)?|make (?:the )?text (?:bigger|larger)|text (?:bigger|larger))$/.test(phrase)) return { action: 'biggerText' };
+  if (/^(?:please )?(?:(?:smaller|decrease) text(?: size)?|make (?:the )?text smaller|text smaller)$/.test(phrase)) return { action: 'smallerText' };
+  if (/^(?:please )?(?:(?:normal|default|reset) text(?: size)?|text (?:size )?(?:normal|default|reset))$/.test(phrase)) return { action: 'normalText' };
+  if (/^(?:please )?(?:high contrast on|turn on high contrast|enable high contrast)$/.test(phrase)) return { action: 'contrast', on: true };
+  if (/^(?:please )?(?:high contrast off|turn off high contrast|disable high contrast)$/.test(phrase)) return { action: 'contrast', on: false };
+  if (/^(?:please )?(?:open |show |go to )?(?:the |my )?(?:accessibility|settings)(?: settings| panel| menu)?$/.test(phrase)) return { action: 'openSettings' };
   return null;
 }
 

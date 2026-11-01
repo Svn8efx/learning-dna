@@ -227,3 +227,113 @@ def test_limiter_forgets_old_failures():
     assert lim.blocked("a") and not lim.blocked("b")
     now[0] = 11.0
     assert not lim.blocked("a")
+
+
+# ---- Regression tests from the final audit (docs/FINAL_AUDIT.md) ----
+
+FIVE_TOPICS = "python, data preprocessing, linear regression, classification, neural networks"
+
+
+def start_five(client):
+    assert client.post("/api/start", json={"syllabus_text": FIVE_TOPICS}).status_code == 200
+
+
+def path_statuses(client):
+    return [(s["topic"], s["status"]) for s in client.get("/api/context").get_json()["learningPath"]]
+
+
+@pytest.mark.parametrize("path", [
+    "/api/start", "/api/quiz", "/api/tutor", "/api/profile/intake", "/api/monitor/event", "/api/account/resume",
+    "/api/path/step/update", "/api/path/update", "/api/path/video/track", "/api/path/course/track",
+])
+@pytest.mark.parametrize("body", [[1, 2], "text", 5])
+def test_non_object_json_is_a_400_not_a_crash(client, path, body):
+    start_plan(client)
+    r = client.post(path, json=body)
+    assert r.status_code == 400
+    assert "attribute" not in r.get_json()["error"]          # no Python internals in the message
+
+
+def test_preferences_reject_non_object_json(client):
+    assert client.put("/api/accessibility/preferences", json=5).status_code == 400
+
+
+def test_quiz_answers_must_be_an_object(client):
+    start_plan(client)
+    for bad in ([1], "x", 5):
+        assert client.post("/api/quiz", json={"answers": bad}).status_code == 400
+
+
+def test_intake_ignores_values_of_the_wrong_type(client):
+    r = client.post("/api/profile/intake", json={"vision": ["high"], "hearing": {"a": 1}, "motor": 3})
+    assert r.status_code == 200 and r.get_json()["needProfile"]["intake"]["vision"] == "none"
+
+
+@pytest.mark.parametrize("bad", ["abc", "inf", "nan", 1e999, [1], {"a": 1}, None])
+def test_video_tracking_survives_bad_numbers(client, bad):
+    start_plan(client)
+    topic = client.get("/api/context").get_json()["profile"]["topics"][0]
+    r = client.post("/api/path/video/track", json={"topic": topic, "url": "https://example.test/v", "event": "start",
+                                                    "watched_pct": bad, "watched_seconds": bad})
+    assert r.status_code == 200
+    assert client.get("/api/context").status_code == 200             # the profile must stay readable
+    assert client.get("/api/monitor/summary").status_code == 200
+    assert client.get("/api/path/progress").get_json()["videoActivity"][topic]["https://example.test/v"]["watched_pct"] <= 100
+
+
+def test_video_tracking_clamps_percentages(client):
+    start_plan(client)
+    topic = client.get("/api/context").get_json()["profile"]["topics"][0]
+    client.post("/api/path/video/track", json={"topic": topic, "url": "u", "watched_pct": 5000, "watched_seconds": 10**12})
+    entry = client.get("/api/path/progress").get_json()["videoActivity"][topic]["u"]
+    assert entry["watched_pct"] == 100 and entry["watched_seconds"] == 86400
+
+
+def test_unexpected_errors_do_not_leak_details(client):
+    def boom():
+        raise RuntimeError("mongodb://user:secretpass@host/db failed")
+    client.application.add_url_rule("/api/_boom", "boom", boom)
+    r = client.get("/api/_boom")
+    assert r.status_code == 500
+    assert "secretpass" not in r.get_data(as_text=True) and "mongodb" not in r.get_data(as_text=True)
+    assert r.get_json()["ok"] is False
+
+
+def test_oversized_requests_are_refused(client):
+    r = client.post("/api/start", data=b'{"syllabus_text": "' + b"a" * 1_200_000 + b'"}', content_type="application/json")
+    assert r.status_code == 413 and r.get_json()["ok"] is False
+
+
+def test_reading_the_path_does_not_unlock_topics(client):
+    start_five(client)
+    first = path_statuses(client)
+    assert [s for _, s in first] == ["recommended", "locked", "locked", "locked", "locked"]
+    for _ in range(4):                                     # every page load reads the path
+        client.get("/api/notifications")
+        client.get("/api/context")
+    assert path_statuses(client) == first
+
+
+def test_completing_a_topic_unlocks_only_the_next_one(client):
+    start_five(client)
+    assert client.post("/api/path/step/update", json={"topic": "python", "status": "completed"}).status_code == 200
+    assert [s for _, s in path_statuses(client)] == ["completed", "recommended", "locked", "locked", "locked"]
+
+
+@pytest.mark.parametrize("route", ["/api/path/step/update", "/api/path/update"])
+def test_locked_topics_cannot_be_started_or_completed_by_request(client, route):
+    start_five(client)
+    for status in ("completed", "in-progress"):
+        r = client.post(route, json={"topic": "neural networks", "status": status})
+        assert r.status_code == 400 and "locked" in r.get_json()["error"]
+    assert path_statuses(client)[-1] == ("neural networks", "locked")
+    assert client.post(route, json={"topic": "python", "status": "in-progress"}).status_code == 200
+
+
+def test_preferences_report_whether_anything_is_saved(client):
+    first = client.get("/api/accessibility/preferences").get_json()
+    assert first["saved"] is False and first["preferences"]["high_contrast"] is False   # defaults, nothing stored yet
+    saved = client.put("/api/accessibility/preferences", json={"high_contrast": True}).get_json()
+    assert saved["saved"] is True
+    again = client.get("/api/accessibility/preferences").get_json()
+    assert again["saved"] is True and again["preferences"]["high_contrast"] is True

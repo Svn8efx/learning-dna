@@ -1,6 +1,8 @@
 """Module 3 - accessible multimedia: saved preferences and text-first lessons (transcripts)."""
 from flask import Blueprint, jsonify, request
 
+from learning_dna.http_utils import json_body
+
 from learning_dna.accessibility import DEFAULT_PREFS, clean_preferences
 from learning_dna.content import get_lesson, list_lessons
 from learning_dna.monitoring import record_event
@@ -13,14 +15,16 @@ bp = Blueprint("accessibility", __name__)
 def api_preferences():
     current = clean_preferences(None, state.get("a11y_preferences"))
     if request.method == "PUT":
-        incoming = request.get_json(silent=True) or {}
+        incoming = json_body()
         updated = clean_preferences(incoming, current)
         changed = [k for k in DEFAULT_PREFS if updated[k] != current[k]]
         state["a11y_preferences"] = updated
         for key in changed[:5]:
             record_event(state.student_id(), "a11y_change", meta={"setting": key})
         current = updated
-    return jsonify({"ok": True, "preferences": current, "defaults": DEFAULT_PREFS})
+    # `saved` is False until this student has stored settings, so the browser knows not to overwrite its own copy
+    return jsonify({"ok": True, "preferences": current, "defaults": DEFAULT_PREFS,
+                    "saved": state.get("a11y_preferences") is not None})
 
 
 @bp.route("/api/content")

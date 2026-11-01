@@ -259,3 +259,9 @@ html[data-contrast='high'] .badge { border: 1px solid #fff; }
   header, footer, .skip-link, .no-print { display: none !important; }
   body { background: #fff; color: #000; }
 }
+
+/* Narrow screens with large text: let columns and rows shrink and long words wrap instead of scrolling sideways. */
+@media (max-width: 40rem) {
+  main { overflow-wrap: break-word; }
+  main fieldset, main li, main .grid > *, main .flex > * { min-width: 0; }
+}

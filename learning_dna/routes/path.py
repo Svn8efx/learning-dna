@@ -8,8 +8,22 @@ from learning_dna.learning import _build_learning_path, _dashboard_payload, _def
 from learning_dna.learning import _coerce_path_progress, _normalize_step_status, _status_label
 from learning_dna.learning import _activity_metrics, _compute_learning_score, _resolve_topic_for_resources, _topic_resource_payload
 from learning_dna.store import state
+from learning_dna.http_utils import clean_number, clean_text, json_body
 
 bp = Blueprint("path", __name__)
+
+
+def _locked_response(profile, topic, status):
+    """A 400 reply when someone tries to start or complete a topic that is still locked, otherwise None.
+
+    The Learning path and Lesson pages already disable these buttons; this keeps the rule true for any request.
+    """
+    if status == 'locked':
+        return None
+    for step in _build_learning_path(profile, state.get('assessment') or []):
+        if step['topic'] == topic and step['status'] == 'locked':
+            return jsonify({'ok': False, 'error': 'This topic is still locked. Complete the topics before it first.'}), 400
+    return None
 
 
 @bp.route('/api/path/update', methods=['POST'])
@@ -17,13 +31,16 @@ def api_path_update():
     profile = state.get('profile')
     if not profile:
         return jsonify({'ok': False, 'error': 'Start your plan first.'}), 400
-    data = request.get_json(silent=True) or {}
-    topic = normalize_topic(data.get('topic') or '')
-    status = (data.get('status') or '').strip().lower()
+    data = json_body()
+    topic = normalize_topic(clean_text(data.get('topic'), 100))
+    status = clean_text(data.get('status'), 30).lower()
     if topic not in profile.get('topics', []):
         return jsonify({'ok': False, 'error': 'Unknown topic for this plan.'}), 400
     if status not in {'recommended', 'in-progress', 'completed', 'locked'}:
         return jsonify({'ok': False, 'error': 'Invalid path status.'}), 400
+    locked = _locked_response(profile, topic, status)
+    if locked:
+        return locked
     progress = _coerce_path_progress(profile.get('topics', []), profile.get('path_progress', {}))
     progress[topic] = status
     topics = profile.get('topics', [])
@@ -48,11 +65,14 @@ def api_path_step_update():
     profile = state.get('profile')
     if not profile:
         return jsonify({'ok': False, 'error': 'Start your plan first.'}), 400
-    data = request.get_json(silent=True) or {}
-    topic = normalize_topic(data.get('topic') or '')
-    status = _normalize_step_status(data.get('status') or '')
+    data = json_body()
+    topic = normalize_topic(clean_text(data.get('topic'), 100))
+    status = _normalize_step_status(clean_text(data.get('status'), 30))
     if topic not in profile.get('topics', []):
         return jsonify({'ok': False, 'error': 'Unknown topic for this plan.'}), 400
+    locked = _locked_response(profile, topic, status)
+    if locked:
+        return locked
     progress = _coerce_path_progress(profile.get('topics', []), profile.get('path_progress', {}))
     progress[topic] = status
     topics = profile.get('topics', [])
@@ -91,14 +111,14 @@ def api_path_video_track():
     profile = state.get('profile')
     if not profile or not profile.get('topics'):
         return jsonify({'ok': False, 'error': 'Start your plan first.'}), 400
-    data = request.get_json(silent=True) or {}
-    topic = _resolve_topic_for_resources(data.get('topic', ''), profile)
+    data = json_body()
+    topic = _resolve_topic_for_resources(clean_text(data.get('topic'), 100), profile)
     if not topic:
         return jsonify({'ok': False, 'error': 'Invalid topic.'}), 400
-    url = (data.get('url') or '').strip()
-    watched_seconds = int(data.get('watched_seconds') or 0)
-    watched_pct = float(data.get('watched_pct') or 0)
-    event = (data.get('event') or '').strip().lower()
+    url = clean_text(data.get('url'), 500)
+    watched_seconds = int(clean_number(data.get('watched_seconds'), 0, 86400))
+    watched_pct = clean_number(data.get('watched_pct'), 0, 100)
+    event = clean_text(data.get('event'), 20).lower()
     video_activity = profile.setdefault('video_activity', {}).setdefault(topic, {})
     entry = video_activity.setdefault(url, {'clicks': 0, 'watched_seconds': 0, 'watched_pct': 0.0, 'events': []})
     if event == 'start':
@@ -124,12 +144,12 @@ def api_path_course_track():
     profile = state.get('profile')
     if not profile or not profile.get('topics'):
         return jsonify({'ok': False, 'error': 'Start your plan first.'}), 400
-    data = request.get_json(silent=True) or {}
-    topic = _resolve_topic_for_resources(data.get('topic', ''), profile)
+    data = json_body()
+    topic = _resolve_topic_for_resources(clean_text(data.get('topic'), 100), profile)
     if not topic:
         return jsonify({'ok': False, 'error': 'Invalid topic.'}), 400
-    url = (data.get('url') or '').strip()
-    action = (data.get('action') or '').strip().lower()
+    url = clean_text(data.get('url'), 500)
+    action = clean_text(data.get('action'), 20).lower()
     if not url or action not in {'click', 'completed'}:
         return jsonify({'ok': False, 'error': 'Invalid course track payload.'}), 400
     course_activity = profile.setdefault('course_activity', {}).setdefault(topic, {})

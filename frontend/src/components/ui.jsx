@@ -31,6 +31,16 @@ export function Notice({ tone = 'info', title, children, className = '' }) {
   );
 }
 
+/** Shown when the server could not be reached or failed, so a problem is never mistaken for "you have no plan yet". */
+export function LoadFailed({ message, onRetry, title = 'We could not load your plan' }) {
+  return (
+    <Notice tone="danger" title={title}>
+      <p>{message} Your saved plan is not lost. Please try again.</p>
+      {onRetry && <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={onRetry}>Try again</button>}
+    </Notice>
+  );
+}
+
 /** Empty state: says what is missing, why, and the one thing to do next. */
 export function EmptyState({ icon: Icon, title, children, action }) {
   return (
