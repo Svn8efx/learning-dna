@@ -43,7 +43,7 @@ async function scenario(name, {mode='ok', tts='ok', prefs={voice_commands:true,t
 
 await scenario('Unsupported browser (no Web Speech API)',{mode:'unsupported',tts:'none'},async a=>{
   const before=await a.text();
-  check(/Voice commands are not working/.test(before),'header explains that voice commands cannot work, without opening settings');
+  check(/Voice commands are not working/.test(before)&&/does not support them/.test(before),'a message explains that voice commands cannot work, without opening settings');
   await a.openPanel(); const t=await a.text();
   check(/Voice commands need Chrome or Edge/.test(t),'settings panel explains voice needs Chrome or Edge');
   check(/cannot|not support|isn.t supported|not available/i.test(t)||true,'TTS unsupported note present or Listen hidden');
@@ -54,7 +54,13 @@ await scenario('Unsupported browser (no Web Speech API)',{mode:'unsupported',tts
 
 await scenario('Microphone permission DENIED',{mode:'denied'},async a=>{
   const t0=await a.text();
-  check(/Voice commands are not working: the microphone is blocked/.test(t0),'denied-microphone message is visible WITHOUT opening settings');
+  check(/Voice commands are not working/.test(t0)&&/The microphone is blocked/.test(t0)&&/keyboard and mouse still work/.test(t0),'denied-microphone message is visible WITHOUT opening settings');
+  await a.page.screenshot({path:'voice-card.png'});
+  check(await a.page.evaluate(()=>!!document.querySelector('[role="alert"] button[aria-label^="Dismiss"]')),'message has an X dismiss button');
+  await a.page.evaluate(()=>document.querySelector('[role="alert"] button[aria-label^="Dismiss"]').click()); await sleep(300);
+  check(await a.page.evaluate(()=>!document.querySelector('[role="alert"]')),'X dismisses the message');
+  await a.page.reload({waitUntil:'domcontentloaded'}); await sleep(1800);
+  check(await a.page.evaluate(()=>!document.querySelector('[role="alert"]')),'it stays dismissed after a reload in the same browser session');
   await a.openPanel(); const t=await a.text();
   check(/Microphone access is blocked/.test(t),'settings panel shows clear "Microphone access is blocked" message');
   check(/Try voice commands again/.test(t),'retry button offered');

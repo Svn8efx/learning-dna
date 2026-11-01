@@ -9,6 +9,7 @@ so paths and the Chromium package may need adjusting on Windows. They are test t
 | `interact.mjs` | 21-step scripted user flow (plan, quiz, path, lesson, My DNA, resume code, mobile menu) |
 | `states.mjs` | axe scan with notifications, account menu, search and mobile menu open |
 | `voice.mjs` | Voice and text-to-speech with a **mocked** speech service (denied, no microphone, unsupported, commands, read aloud) |
+| `notif.mjs` | Notification panel: bell count, mark all read, delete, click to open, remembered after reload, axe with the panel open |
 | `journeys.mjs` | Resume code, server errors and slow server, hostile text, keyboard-only use, link integrity |
 | `width-check.mjs` | Sideways scroll on every page at 320 px with 100%, 150% and 200% text |
 | `serve.py` | Serves the built frontend and proxies `/api` to the backend on port 5055, like Vercel's rewrite |

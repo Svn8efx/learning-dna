@@ -10,6 +10,7 @@ import os
 import random
 import re
 import time
+from urllib.parse import quote
 
 from learning_dna.resources import QUIZ_QUESTIONS, TOPIC_CATALOG, match_topics_from_text, normalize_topic
 from learning_dna.runtime import DATA_INFO, DATASET_REGISTRY_DF, MODEL_BUNDLE
@@ -553,16 +554,16 @@ def _dashboard_core():
     resources = _build_resources(profile, assessment) if profile.get("topics") else []
     notifications = []
     if weak:
-        notifications.append({"type": "warning", "title": "Focus next", "message": f"Revise {weak[0].title()} first before moving to harder topics."})
+        notifications.append({"id": f"focus-next:{weak[0]}", "href": f"/lesson/{quote(weak[0])}", "type": "warning", "title": "Focus next", "message": f"Revise {weak[0].title()} first before moving to harder topics."})
     if strengths:
-        notifications.append({"type": "success", "title": "Strong area", "message": f"You are doing well in {strengths[0].title()}."})
+        notifications.append({"id": f"strong-area:{strengths[0]}", "href": "/progress", "type": "success", "title": "Strong area", "message": f"You are doing well in {strengths[0].title()}."})
     if profile.get("topics"):
-        notifications.append({"type": "info", "title": "Plan ready", "message": f"{len(profile['topics'])} syllabus topics were mapped into your study plan."})
+        notifications.append({"id": "plan-ready:" + "|".join(profile["topics"]), "href": "/path", "type": "info", "title": "Plan ready", "message": f"{len(profile['topics'])} syllabus topics were mapped into your study plan."})
     activity = profile.get("activity", {})
     path_metrics = _activity_metrics(profile, assessment)
     learning_score = path_metrics["learning_score"]
     if learning_score >= 80:
-        notifications.append({"type": "success", "title": "Learning score rising", "message": f"Your adaptive learning score is now {learning_score}%."})
+        notifications.append({"id": f"learning-score:{int(learning_score) // 10 * 10}", "href": "/progress", "type": "success", "title": "Learning score rising", "message": f"Your adaptive learning score is now {learning_score}%."})
     return {
         "profile": profile,
         "assessment": assessment,

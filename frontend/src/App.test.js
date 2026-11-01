@@ -229,17 +229,30 @@ const layoutRoutes = (
 test('when voice commands are on but this browser has no speech recognition, the header says so and offers settings', async () => {
   mockPreferences({ ok: true, saved: true, preferences: { voice_commands: true } });   // jsdom has no SpeechRecognition
   const c = await mount(layoutRoutes);
-  const alert = c.querySelector('header [role="alert"]');
+  const alert = c.querySelector('[role="alert"]');
   expect(alert).not.toBeNull();
   expect(alert.textContent).toMatch(/Voice commands are not working/);
+  expect(alert.textContent).toMatch(/does not support them/);
   expect(alert.textContent).toMatch(/keyboard and mouse still work/);
   expect(Array.from(alert.querySelectorAll('button')).some((b) => /accessibility settings/i.test(b.textContent))).toBe(true);
 });
 
+test('the voice message has an X that dismisses it, and it stays dismissed while the problem is the same', async () => {
+  sessionStorage.clear();
+  mockPreferences({ ok: true, saved: true, preferences: { voice_commands: true } });
+  const c = await mount(layoutRoutes);
+  const close = c.querySelector('[role="alert"] button[aria-label="Dismiss the voice commands message"]');
+  expect(close).not.toBeNull();
+  await act(async () => { close.click(); });
+  expect(c.querySelector('[role="alert"]')).toBeNull();
+  expect(sessionStorage.getItem('learning_dna_voice_alert')).toMatch(/does not support/);
+});
+
 test('no voice warning appears when voice commands are off', async () => {
   mockPreferences({ ok: true, saved: true, preferences: { voice_commands: false } });
+  sessionStorage.clear();
   const c = await mount(layoutRoutes);
-  expect(c.querySelector('header [role="alert"]')).toBeNull();
+  expect(c.querySelector('[role="alert"]')).toBeNull();
 });
 
 test('settings kept in this browser are not replaced by defaults when the server has nothing saved', async () => {
@@ -306,4 +319,98 @@ test('account menu opens under the header, lists My code and Log out, and closes
   expect(c.querySelector('#account-menu')).not.toBeNull();
   await act(async () => { document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); });
   expect(c.querySelector('#account-menu')).toBeNull();
+});
+
+
+// ---- Notifications: badge, mark as read, delete, open ----
+const NOTES = [
+  { id: 'plan-ready:python', href: '/path', type: 'info', title: 'Plan ready', message: '1 syllabus topics were mapped into your study plan.' },
+  { id: 'strong-area:python', href: '/progress', type: 'success', title: 'Strong area', message: 'You are doing well in Python.' },
+];
+
+function mockNotifications(list) {
+  const base = global.fetch;
+  global.fetch = jest.fn((url, opts) => (url.includes('/api/notifications')
+    ? Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify({ ok: true, notifications: list })) })
+    : base(url, opts)));
+}
+
+const bellOf = (c) => c.querySelector('button[data-notif-toggle][aria-expanded]');
+const panelOf = (c) => c.querySelector('section[aria-label="Notifications"]');
+const badgeText = (c) => bellOf(c).querySelector('span[aria-hidden="true"]:not(svg)')?.textContent || '';
+
+const notificationApp = (
+  <AccessibilityProvider><MemoryRouter initialEntries={['/dashboard']}>
+    <Routes><Route element={<Layout />}>
+      <Route path="dashboard" element={<p>dashboard page</p>} />
+      <Route path="path" element={<p>path page</p>} />
+      <Route path="progress" element={<p>progress page</p>} />
+    </Route></Routes>
+  </MemoryRouter></AccessibilityProvider>
+);
+
+beforeEach(() => { localStorage.removeItem('learning_dna_notifications_v1'); sessionStorage.clear(); });
+
+test('the bell shows how many notifications are new, and opening the panel clears that number', async () => {
+  mockNotifications(NOTES);
+  const c = await mount(notificationApp);
+  expect(badgeText(c)).toBe('2');
+  expect(bellOf(c).getAttribute('aria-label')).toBe('Notifications, 2 new');
+  await act(async () => { bellOf(c).click(); });
+  expect(panelOf(c)).not.toBeNull();
+  expect(badgeText(c)).toBe('');                                         // seen
+  expect(bellOf(c).getAttribute('aria-label')).toBe('Notifications');
+  expect(panelOf(c).textContent).toMatch(/2 unread/);                    // but still not marked as read
+});
+
+test('Mark all read clears the unread count and the unread markers', async () => {
+  mockNotifications(NOTES);
+  const c = await mount(notificationApp);
+  await act(async () => { bellOf(c).click(); });
+  const readAll = Array.from(panelOf(c).querySelectorAll('button')).find((b) => /Mark all read/.test(b.textContent));
+  expect(readAll.disabled).toBe(false);
+  await act(async () => { readAll.click(); });
+  expect(panelOf(c).textContent).not.toMatch(/unread/i);
+  expect(Array.from(panelOf(c).querySelectorAll('button')).find((b) => /Mark all read/.test(b.textContent)).disabled).toBe(true);
+  expect(JSON.parse(localStorage.getItem('learning_dna_notifications_v1')).read).toEqual(['plan-ready:python', 'strong-area:python']);
+});
+
+test('a notification can be deleted, stays deleted after a reload, and the panel says when none are left', async () => {
+  mockNotifications(NOTES);
+  let c = await mount(notificationApp);
+  await act(async () => { bellOf(c).click(); });
+  const del = panelOf(c).querySelector('button[aria-label="Delete notification: Plan ready"]');
+  expect(del).not.toBeNull();
+  await act(async () => { del.click(); });
+  expect(panelOf(c).textContent).not.toMatch(/Plan ready/);
+  expect(panelOf(c).textContent).toMatch(/Strong area/);
+  // a fresh mount (like a page reload) remembers the choice
+  mockNotifications(NOTES);
+  c = await mount(notificationApp);
+  expect(badgeText(c)).toBe('');                       // both were already seen when the panel was opened
+  await act(async () => { bellOf(c).click(); });
+  expect(panelOf(c).textContent).not.toMatch(/Plan ready/);
+  expect(panelOf(c).textContent).toMatch(/1 unread/);   // the one left is still unread
+  await act(async () => { panelOf(c).querySelector('button[aria-label="Delete notification: Strong area"]').click(); });
+  expect(panelOf(c).textContent).toMatch(/all caught up/i);
+});
+
+test('clicking a notification opens its page, marks it read and closes the panel', async () => {
+  mockNotifications(NOTES);
+  const c = await mount(notificationApp);
+  await act(async () => { bellOf(c).click(); });
+  const link = Array.from(panelOf(c).querySelectorAll('a')).find((a) => /Strong area/.test(a.textContent));
+  expect(link.getAttribute('href')).toBe('/progress');
+  await act(async () => { link.click(); });
+  expect(c.textContent).toMatch(/progress page/);
+  expect(panelOf(c)).toBeNull();
+  expect(JSON.parse(localStorage.getItem('learning_dna_notifications_v1')).read).toEqual(['strong-area:python']);
+});
+
+test('the bell has no number when there are no notifications', async () => {
+  mockNotifications([]);
+  const c = await mount(notificationApp);
+  expect(badgeText(c)).toBe('');
+  await act(async () => { bellOf(c).click(); });
+  expect(panelOf(c).textContent).toMatch(/all caught up/i);
 });

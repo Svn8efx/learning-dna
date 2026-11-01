@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Dna, Search, Bell, Accessibility, Volume2, VolumeX, KeyRound, Sun, Moon, Menu, X, ChevronDown } from 'lucide-react';
+import { Dna, Search, Bell, Accessibility, Volume2, VolumeX, KeyRound, Sun, Moon, Menu, X, ChevronDown, MicOff } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useVoiceCommands, voiceSupported } from '../hooks/useVoiceCommands';
 import AccessibilityPanel from './AccessibilityPanel';
+import NotificationPanel from './NotificationPanel';
+import { useNotificationState } from '../hooks/useNotificationState';
 import LogoutButton from './LogoutButton';
 
 const REPO_URL = 'https://github.com/Svn8efx/learning-dna';
@@ -59,11 +61,22 @@ export default function Layout() {
   const firstRender = useRef(true);
   const { prefs, updatePrefs, speak, stopSpeaking, speaking, speechSupported, announce, logEvent } = useAccessibility();
 
+  // Fetched again on every page change, so a new plan or quiz result shows up without reloading the site
   useEffect(() => {
     apiFetch('/api/notifications')
       .then(data => setNotifications(data.notifications || []))
       .catch(() => setNotifications([]));
-  }, []);
+  }, [location.pathname]);
+
+  const notes = useNotificationState(notifications);
+  const { markSeen } = notes;
+  useEffect(() => { if (drawer === 'notifications') markSeen(); }, [drawer, markSeen]);
+
+  const deleteNotification = (id) => {
+    notes.dismiss(id);
+    announce('Notification deleted');
+    setTimeout(() => notifRef.current && notifRef.current.focus(), 0);
+  };
 
   // On every page change: set the page title, tell screen readers, move focus to the main content
   useEffect(() => {
@@ -156,6 +169,19 @@ export default function Layout() {
     ? 'this browser does not support them, so please use Chrome or Edge'
     : voiceError ? (VOICE_PROBLEMS[voiceError] || `something went wrong (${voiceError})`) : '';
 
+  // The message can be dismissed; it comes back if the problem changes or voice commands are turned off and on again
+  const [dismissedVoice, setDismissedVoice] = useState(() => { try { return sessionStorage.getItem('learning_dna_voice_alert') || ''; } catch { return ''; } });
+  const dismissVoiceAlert = () => {
+    setDismissedVoice(voiceProblem);
+    try { sessionStorage.setItem('learning_dna_voice_alert', voiceProblem); } catch { /* ignore */ }
+  };
+  useEffect(() => {
+    if (!prefs.voice_commands) {
+      setDismissedVoice('');
+      try { sessionStorage.removeItem('learning_dna_voice_alert'); } catch { /* ignore */ }
+    }
+  }, [prefs.voice_commands]);
+
   // Keyboard shortcuts: Alt + Shift + letter
   useEffect(() => {
     if (!prefs.keyboard_mode) return undefined;
@@ -215,9 +241,9 @@ export default function Layout() {
             </button>
 
             <div className="hidden items-center gap-1 min-[1000px]:flex">
-              <button type="button" className={iconBtn} aria-label={notifications.length ? `Notifications, ${notifications.length}` : 'Notifications'} aria-expanded={drawer === 'notifications'} data-notif-toggle onClick={() => setDrawer(drawer === 'notifications' ? null : 'notifications')}>
+              <button type="button" className={iconBtn} aria-label={notes.newCount ? `Notifications, ${notes.newCount} new` : 'Notifications'} aria-expanded={drawer === 'notifications'} data-notif-toggle onClick={() => setDrawer(drawer === 'notifications' ? null : 'notifications')}>
                 <Bell size={18} aria-hidden="true" />
-                {notifications.length > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-ink" aria-hidden="true">{notifications.length}</span>}
+                {notes.newCount > 0 && <span className="absolute right-1 top-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-ink" aria-hidden="true">{notes.newCount}</span>}
               </button>
               <button type="button" className={iconBtn} onClick={toggleTheme} aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
                 {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
@@ -262,7 +288,7 @@ export default function Layout() {
               <p className="eyebrow px-3 pb-1">Tools</p>
               <div className="grid grid-cols-2 gap-2">
                 <button type="button" className="btn btn-secondary btn-sm" data-notif-toggle onClick={() => { setDrawer(drawer === 'notifications' ? null : 'notifications'); setMenuOpen(false); }}>
-                  <Bell size={16} aria-hidden="true" /> Notifications{notifications.length ? ` (${notifications.length})` : ''}
+                  <Bell size={16} aria-hidden="true" /> Notifications{notes.newCount ? ` (${notes.newCount})` : ''}
                 </button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={toggleTheme}>
                   {theme === 'dark' ? <Sun size={16} aria-hidden="true" /> : <Moon size={16} aria-hidden="true" />} {theme === 'dark' ? 'Light theme' : 'Dark theme'}
@@ -324,37 +350,15 @@ export default function Layout() {
 
         {drawer === 'notifications' && (
           <div className="relative mx-auto max-w-[90rem]">
-            <section
-              ref={notifRef}
-              aria-label="Notifications"
-              className="absolute right-4 top-2 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-line-strong bg-surface p-3 shadow-lg sm:right-6 lg:right-8"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold">Notifications</h2>
-                <button type="button" className="btn btn-ghost btn-icon" onClick={() => setDrawer(null)} aria-label="Close notifications">
-                  <X size={16} aria-hidden="true" />
-                </button>
-              </div>
-              {notifications.length ? (
-                <ul className="mt-1 max-h-64 divide-y divide-line overflow-y-auto">
-                  {notifications.map((n, i) => (
-                    <li key={i} className="py-2 text-sm first:pt-1 last:pb-0">
-                      <span className="block font-medium text-ink">{n.title}</span>
-                      <span className="block text-muted">{n.message}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="mt-1 text-sm text-muted">No notifications yet.</p>}
-            </section>
-          </div>
-        )}
-
-        {voiceProblem && (
-          <div className="border-t border-line bg-sunken" role="alert">
-            <div className="mx-auto flex max-w-[90rem] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5 text-sm text-muted sm:px-6 lg:px-8">
-              <p>Voice commands are not working: {voiceProblem}. The keyboard and mouse still work.</p>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPanelOpen(true)}>Open accessibility settings</button>
-            </div>
+            <NotificationPanel
+              panelRef={notifRef}
+              items={notes.items}
+              unreadCount={notes.unreadCount}
+              onClose={() => setDrawer(null)}
+              onOpen={(id) => { notes.markRead(id); setDrawer(null); }}
+              onReadAll={() => { notes.markAllRead(); announce('All notifications marked as read'); }}
+              onDelete={deleteNotification}
+            />
           </div>
         )}
 
@@ -378,6 +382,22 @@ export default function Layout() {
           </p>
         </div>
       </footer>
+
+      {voiceProblem && voiceProblem !== dismissedVoice && (
+        <div role="alert" className="fixed inset-x-4 bottom-4 z-40 rounded-xl border border-line-strong bg-surface p-4 pr-12 shadow-lg sm:left-auto sm:right-6 sm:w-[25rem]">
+          <button type="button" className="btn btn-ghost btn-icon absolute right-1.5 top-1.5" onClick={dismissVoiceAlert} aria-label="Dismiss the voice commands message">
+            <X size={16} aria-hidden="true" />
+          </button>
+          <div className="flex gap-3">
+            <MicOff size={20} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="font-semibold text-ink">Voice commands are not working</p>
+              <p className="mt-1 text-sm text-muted">{voiceProblem.charAt(0).toUpperCase() + voiceProblem.slice(1)}. The keyboard and mouse still work.</p>
+              <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={() => { setPanelOpen(true); }}>Open accessibility settings</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

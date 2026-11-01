@@ -18,11 +18,11 @@ Audit of the Learning DNA project after the redesign: features, API, voice, end-
 
 ## 1. Summary
 
-- **13 problems were found and fixed**, each with a regression test or a browser check (section 4). The resume-code rate limit is now safer and configurable, but whether it is fully closed on your live site depends on a setting and a one-minute check that only you can do (section 6, item 3).
+- **16 problems were found and fixed**, each with a regression test or a browser check (section 4). The resume-code rate limit is now safer and configurable, but whether it is fully closed on your live site depends on a setting and a one-minute check that only you can do (section 6, item 3).
 - **Backend:** 149 tests pass. Against the original code, 90 of the regression tests written for the first 11 problems fail, so they do catch the bugs.
 - **Frontend:** 37 tests pass. The production build compiles with no warnings in strict CI mode.
 - **Accessibility scan (axe-core, WCAG 2.0/2.1/2.2 A and AA tags):** 0 violations on all 13 pages, in light, dark and high-contrast modes, at 1280, 390 and 320 px wide (117 combinations).
-- **Mocked-speech browser tests:** 45 of 45 checks pass. **Journey tests:** 46 of 46. **Scripted flow:** 21 of 21.
+- **Mocked-speech browser tests:** 48 of 48 checks pass. **Notification panel browser test:** 12 of 12. **Journey tests:** 46 of 46. **Scripted flow:** 21 of 21.
 - **Real microphone, real speech output, NVDA/JAWS, the live site and the live database were not tested.**
 - Several deployment and security risks remain (section 6). The most important are the guessable fallback `SECRET_KEY`, the session cookie without a `Secure` flag, and the resume-code rate limit setting.
 
@@ -47,7 +47,8 @@ Audit of the Learning DNA project after the redesign: features, API, voice, end-
 | 11 | Tutor: quick questions, typed question, answer in the log | P | Scripted flow; hostile text J5 |
 | 12 | My DNA: save, edit, cancel; high contrast applied | P | Scripted flow |
 | 13 | Progress: chart plus table, 15-second refresh, quiz history | P | Frontend tests; journey J2 |
-| 14 | Search drawer; notifications panel (small floating panel) | P | Frontend tests; browser states |
+| 14 | Search drawer | P | Frontend tests; browser states |
+| 14b | Notifications: bell count, mark all read, delete, click to open, refresh while browsing | **F** | Bugs 14 and 15. Frontend tests (5); backend test; browser test (12 checks) |
 | 15 | Account menu: My code, Log out | P | Scripted flow; browser states |
 | 16 | Resume code: create, copy, resume on another browser, spoken-style entry | P | Scripted flow; journey J2 |
 | 17 | Resume code: wrong format, unknown code, rate limit message | P | Backend tests; journey J1 |
@@ -114,6 +115,9 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 | 11 | **Layout.** The header overflowed sideways at phone width with 150-200 % text; at 320 px with large text, Learning path, Quiz, Lessons, Goals, Home and Progress also scrolled sideways. Two scrollable tables were not reachable by keyboard at 320 px. | Medium (accessibility) | The header and its button group wrap; narrow-screen rules let columns shrink; both tables are focusable regions with names. | axe scans at 320 px; width check on 13 pages at 100/150/200 % |
 | 12 | **The Account menu covered the right-hand page links** (Tutor, Progress) at 1280 px while open; axe flagged the partly hidden Tutor link. | Low (accessibility) | The menu now opens under the whole header, like the notifications panel, so it never covers the links. Escape and outside click still close it and Escape returns focus to the Account button. | Frontend test; open-panel scan now 24 of 24; scripted flow 21 of 21 |
 | 13 | **Rate-limit key.** The resume-code limiter used the first `X-Forwarded-For` value even if it was junk, so a script could create endless new "visitors", and the table of visitors never shrank. | Low-Medium | Only real IP addresses are accepted (otherwise the connecting address is used); quiet visitors are forgotten; new setting `TRUSTED_PROXY_HOPS` makes the limiter use the address that a trusted proxy recorded instead of one the visitor wrote. Default `0` keeps the old behaviour, so nothing changes until you set it. | 5 backend tests |
+| 14 | **Notifications could not be used.** The number on the bell never cleared; notifications were not clickable and could not be deleted or marked as read. The list was also loaded only once when the site first opened, so a new plan or quiz result did not appear until a full reload. | Medium | The bell counts new notifications and clears when the panel is opened. The panel has **Mark all read**, a delete button on each notification, and each notification opens its page (path, lesson, progress). The list refreshes on every page change. Choices are remembered in this browser (not across devices). The server now gives each notification a stable `id` and a `href`. | 5 frontend tests, 1 backend test, 12-check browser test (including axe with the panel open) |
+| 15 | **The voice-commands message was a plain full-width bar** with no way to close it. | Low (design) | Now a card with an icon, a title, a short reason, a button to open settings and an X in the corner. The X is remembered for the browser session and the card returns if the problem changes. | 2 frontend tests; browser test (X dismisses, stays dismissed after reload) |
+| 16 | **Sideways scroll at 320 px with 200% text** on the Learning path: the timeline's left space grows with text size and left the topic card almost no width. This explains the intermittent 7 px overflow reported earlier. | Low (accessibility) | Less left space on narrow screens, and headings, links and buttons may break a long word if they must. | Width check on 13 pages at 100/150/200 %, run twice after the change and clean both times |
 
 ---
 
@@ -121,17 +125,18 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 
 | Check | Result |
 |---|---|
-| Backend `pytest` (in-memory and `mongomock`) | **149 passed** |
+| Backend `pytest` (in-memory and `mongomock`) | **151 passed** |
 | The new backend tests against the original code | 90 failed (so they detect the bugs) |
-| Frontend `npm test` | **37 passed** (3 suites) |
+| Frontend `npm test` | **43 passed** (3 suites) |
 | Frontend production build, `CI=true` | Compiled successfully, no warnings (this also runs ESLint) |
 | `ruff` (pyflakes rules, star-import and unused-import rules ignored) | 3 notes, all unused local variables (`learning.py`, `catalog_service.py`, a test). The same count was in the original code; none affect behaviour. Left as is. |
 | axe-core scan, 13 pages x 3 widths x 3 modes (light, dark, high contrast with 150 % text, large targets and reduced motion) | **117 combinations, 0 violations, no sideways scroll, no console errors** |
 | Open-panel scan (notifications, account menu, search, mobile menu) x light/dark x 1280/1000/390 px | **24 of 24 clean** (before the Account menu fix, 22 of 24) |
 | Scripted flow (`interact.mjs`) | **21 of 21** |
-| Mocked-speech browser suite (`voice.mjs`) | **45 of 45** |
+| Mocked-speech browser suite (`voice.mjs`) | **48 of 48** |
+| Notification panel browser test (`notif.mjs`) | **12 of 12** (one earlier start-up failure was a stale test server on the port, not the app; it passed on the next run) |
 | Journey suite (`journeys.mjs`) | **46 of 46** |
-| Width check at 320 px, 100/150/200 % text, 13 pages | No sideways scroll (one earlier run showed 7 px on the Learning path at 200 % that did not reproduce in two later runs) |
+| Width check at 320 px, 100/150/200 % text, 13 pages | No sideways scroll (twice, after fixing bug 16) |
 | Static checks | No `dangerouslySetInnerHTML`, `eval` or `innerHTML` in the frontend. No keys, passwords or tokens in code or docs; secrets come only from environment variables. |
 | `npm audit --omit=dev` | 78 findings, no critical. Most are in the react-scripts build tooling, which is not shipped to the browser. See section 6. |
 

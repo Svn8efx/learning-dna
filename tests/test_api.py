@@ -394,3 +394,17 @@ def test_limiter_drops_quiet_visitors():
     now[0] = 100.0
     lim.record_failure("10.1.1.1")
     assert len(lim._by_key) < 10
+
+
+def test_notifications_have_stable_ids_and_a_page_to_open(client):
+    start_five(client)
+    first = client.get("/api/notifications").get_json()["notifications"]
+    again = client.get("/api/notifications").get_json()["notifications"]
+    assert first and [n["id"] for n in first] == [n["id"] for n in again]       # the browser remembers read/deleted by id
+    assert len({n["id"] for n in first}) == len(first)
+    assert all(n["href"].startswith("/") and not n["href"].startswith("//") for n in first)
+    plan = next(n for n in first if n["title"] == "Plan ready")
+    assert plan["href"] == "/path"
+    client.post("/api/start", json={"syllabus_text": "python, classification"})  # a different plan is a new notification
+    changed = next(n for n in client.get("/api/notifications").get_json()["notifications"] if n["title"] == "Plan ready")
+    assert changed["id"] != plan["id"]

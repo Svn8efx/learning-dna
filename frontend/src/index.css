@@ -264,4 +264,6 @@ html[data-contrast='high'] .badge { border: 1px solid #fff; }
 @media (max-width: 40rem) {
   main { overflow-wrap: break-word; }
   main fieldset, main li, main .grid > *, main .flex > * { min-width: 0; }
+  main h1, main h2, main h3, main h4, main a, main button { overflow-wrap: anywhere; }
+  .timeline > li { padding-left: 2.5rem; }   /* the dot scales with text size, so keep the card as wide as possible */
 }

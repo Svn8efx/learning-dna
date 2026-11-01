@@ -42,44 +42,54 @@ It is a community-service-oriented college project for students with **visual, m
 ## ✨ Features
 
 ### 🧠 1. AI Student Profiling
-- Short **"My DNA"** form (`/my-dna`) with save, edit and cancel
+- A short **"My DNA"** form (`/my-dna`) with save, edit and cancel
 - A **TensorFlow neural network** suggests a learning style: `audio_first`, `captioned_visual`, `hands_free` or `balanced`
 - A **plain-language explanation** of why that style was suggested
 - The suggested settings (text size, contrast, voice and so on) are applied for you
 
 ### 🗺️ 2. Adaptive Learning Paths
 - **Goals → Start → Quiz → Dashboard → Path** is the main journey
-- Pick a goal and your topics (or paste a syllabus) and take a quiz
+- Pick a goal and your topics (or paste a syllabus), then take a quiz built from those topics only
 - A personalised path across **30 topics** with prerequisites
-- **Unlock rule:** the first topic you have not completed is open; the next ones unlock as you finish the earlier ones. A topic where your quiz score was below 45% is opened early for review.
-- Keyboard-accessible, ordered list with a text status for every topic
+- **Unlock rule:** the first topic you have not completed is open, and the next ones unlock as you finish the earlier ones. A topic where your quiz score was below 45% is opened early for review.
+- A keyboard-accessible, ordered list with a text status for every topic (never colour alone)
 
-### ♿ 3. Accessible Multimedia
-- 📖 **30 plain-language lessons** with a **Listen** button (text-to-speech), contents list and previous/next links
-- 📝 Downloadable **transcripts**
-- 🎬 Video modal with **captions** (when the video provides them) and `Esc` to close
-- 🔠 Text size **100–200%**
-- 🌓 **High contrast** mode and a **light / dark theme** toggle
+### 📖 3. Lessons You Can Read, Hear and Download
+- **30 plain-language lessons** with a contents list and previous / next links
+- A **Listen** button (text-to-speech) with an adjustable speed
+- **Transcripts** you can download
+- A video player with **captions** (when the video provides them), closable with `Esc`
+- Resources filtered by type: videos, courses and datasets
+
+### ♿ 4. Accessibility Built In, Not Bolted On
+- 🔠 Text size **100-200%**
+- 🌓 **High contrast** mode and a **light / dark** theme toggle
 - 🖱️ **Large click targets**
-- ⌨️ **Keyboard shortcuts** (`Alt + Shift + letter`, listed in the Accessibility panel)
-- 🎙️ **Voice commands** (Chrome / Edge). If the microphone is blocked or the browser does not support them, a message appears at the top of the page and the keyboard and mouse still work.
-- 🐢 **Reduce motion** (the loading spinner stands still)
-- Skip link, landmarks, screen-reader announcements and focus management
-- Tables and charts are always paired with text, so they work without sight
+- ⌨️ **Keyboard shortcuts** (`Alt + Shift + letter`, listed in the Accessibility panel) and a skip link
+- 🎙️ **Voice commands** (Chrome / Edge): go to a page, scroll, go back, click a button by name, change text size or contrast, read the page aloud, stop. If the microphone is blocked or the browser does not support voice, a clear message tells you and offers settings. You can close it with the X, and the keyboard and mouse always still work.
+- 🐢 **Reduce motion**
+- Landmarks, screen-reader announcements and focus management on every page change
+- Charts always come with a table, so nothing depends on sight
 
-### 📊 4. Progress and Monitoring
-- Progress page that **updates about every 15 seconds** while open
-- Chart **plus** a data table
+### 🔔 5. Notifications You Control
+- The bell shows how many notifications are new
+- Open the panel to read them, **mark all as read**, or **delete** any one
+- **Click a notification** to go straight to the right page (your learning path, a lesson to revise, or your progress)
+- Your choices are remembered in this browser
+
+### 📊 6. Progress and Monitoring
+- A progress page that updates about every 15 seconds while it is open
+- A chart **plus** a data table, and your quiz history
 - Compare results **with and without** personalisation
-- Notifications open as a small floating panel under the bell
+- A dashboard that tells you the next step and never shows invented numbers
 
-### 🤖 5. Guided Tutor
-- Quick-question buttons, topic picker and typed questions
+### 🤖 7. Guided Tutor
+- Quick-question buttons, a topic picker and typed questions
 - **Pre-written answers** built from the lesson content (not a live AI)
 - Plan-aware answers such as *"What should I learn next?"* and *"What is my weakest topic?"*
 
-### 🔑 6. No password: a resume code
-- **My code** (`/account menu → My code`) gives you a short code of three words and a number
+### 🔑 8. No Password: a Resume Code
+- **My code** (Account menu) gives you a short code of three words and a number
 - Type it on any phone or computer to bring back your plan, results, progress **and accessibility settings**
 - Wrong guesses are rate-limited. Keep your code private: anyone who has it can open your progress.
 
@@ -188,43 +198,87 @@ Latest results (see `docs/FINAL_AUDIT.md` for exactly what each one proves):
 
 | Check | Result |
 |---|---|
-| Backend tests (in-memory and an emulated MongoDB) | 149 passed |
-| Frontend tests | 37 passed |
+| Backend tests (in-memory and an emulated MongoDB) | 151 passed |
+| Frontend tests | 43 passed |
 | Production build in strict CI mode | no warnings |
 | axe-core accessibility scan, 13 pages, light / dark / high contrast, 320 / 390 / 1280 px | 0 violations |
-| Browser tests with a *mocked* speech service | 45 of 45 |
+| Browser tests with a *mocked* speech service | 48 of 48 |
 | Browser journey tests | 46 of 46 |
 
 `pip install mongomock` is needed to run the database-backed backend tests; without it they are skipped.
 
 ---
 
-## ⚠️ Honest Limitations
+## 🛠️ Recent Updates and Fixes
 
-We would rather be clear than overclaim:
+We are **actively improving Learning DNA and fixing glitches as we find them**. Every change below is in the [commit history](https://github.com/Svn8efx/learning-dna/commits/main).
 
-- 🧪 The TensorFlow model is trained on **synthetic (rule-generated) data**. Its validation accuracy shows it learned those rules, **not** that it predicts real students. Retraining on consented pilot data is future work.
-- 🌐 The live site uses the **scikit-learn fallback**; TensorFlow is demonstrated locally.
-- 🎧 **JAWS / NVDA testing is not yet complete**, and no formal WCAG audit has been done. Automated scans (axe-core) and keyboard tests pass, but they do not replace testing with a screen reader. See `docs/ACCESSIBILITY.md`.
-- 🎙️ **Voice commands and read-aloud have been tested only with a mocked speech service**, not with a real microphone or speaker. They work only in Chrome and Edge and need internet.
-- 🗄️ The database tests used an emulated MongoDB, and nothing in `docs/FINAL_AUDIT.md` was verified on the live site.
-- 🔑 The resume code is the only login. Wrong guesses are rate-limited (10 per visitor per 10 minutes, 60 per minute for the whole server), but anyone who has a code can open that progress, and the limit may be bypassable by calling the API address directly. See `docs/FINAL_AUDIT.md`.
-- 💬 Captions appear only if the YouTube video provides them.
-- 🚫 No audio description, sign language or cognitive-accessibility features yet.
-- ♿ "Wheelchair accessibility" is interpreted as **motor accessibility of the software** (keyboard, voice, large targets).
-- 🤖 The tutor uses pre-written answers and is **not a live AI**.
-- 🌓 The light/dark theme is saved per browser; the accessibility settings follow your code.
+**Latest**
+- Notifications are now useful: the number on the bell clears when you look, you can mark all as read, delete one, and click a notification to open its page. They also refresh as you move around, instead of only when the site first loads.
+- The voice-commands message was redesigned as a clear card with a title, a button and an X to close it.
+- 🐛 **Fixed:** on very small screens with large text, the learning path made its cards too narrow and the page scrolled sideways.
+- README reorganised.
+
+**1 Nov: final audit** *(see [`docs/FINAL_AUDIT.md`](docs/FINAL_AUDIT.md))*
+- 🐛 **Fixed:** learning-path topics unlocked on their own every time a page loaded, so the whole path opened after a few clicks. The unlock rule now holds.
+- 🐛 **Fixed:** locked topics could be completed by sending a request directly. The server now refuses.
+- 🐛 **Fixed:** badly formed requests could crash the server and show internal error text. They now get a clear message, and server errors no longer reveal details.
+- 🐛 **Fixed:** impossible numbers in video tracking could break a learner's dashboard for good. They are now cleaned, and affected profiles recover.
+- 🐛 **Fixed:** a server problem was shown as "You have not built a study plan yet". It now says it could not load and offers Try again, so nobody rebuilds a plan by mistake.
+- 🐛 **Fixed:** voice problems (blocked microphone, unsupported browser) were hidden inside the settings window, and ordinary sentences containing words like "settings" triggered commands.
+- 🐛 **Fixed:** accessibility settings saved in your browser were replaced by defaults when the server had nothing saved.
+- 🐛 **Fixed:** the header and several pages scrolled sideways on phones with large text, and two tables could not be reached with the keyboard.
+- 🔒 Requests are limited to 1 MB, the Account menu no longer covers page links, and the resume-code rate limit is safer.
+- ✅ New automated checks for all of the above.
+
+**31 Oct: redesign**
+- A calm light theme, honest empty and loading states, and grouped navigation
+- New blue favicon and notification style
+- A wider header with evenly spaced links, and the source-code link moved to the footer
+
+**26 Oct: sign-in without a password, and polish**
+- 🔑 Resume codes and log out, with starting a new plan moved into My code
+- A source-code link
+- Dashboard first in the menu, compact stat cards, and the fake trend figure removed
+- Honest empty states on the dashboard
+- Wider navigation links with an active state
+- A slower, calmer loading spinner and a centred loading screen
+- A consistent palette, without symbols in the text
+
+**25 Oct: voice and tutor**
+- 🎙️ Voice commands can scroll and click buttons by name, with more forgiving matching
+- 🐛 **Fixed:** voice command matching and retries
+- Clear voice-command error messages
+- The DNA logo favicon, a guided tutor, and a README with deployment links
+
+**24 Oct: first release**
+- The first version of the accessible, personalised learning platform
+- The tutor answers questions even before you have a plan
+- Deployment fixes: backend URL for Vercel, `gunicorn` and the API helper
 
 ---
 
-## 🔮 Future Work
+## ⚠️ Known Limitations
 
-- 🎬 Real captions and audio description
-- 🇮🇳 Hindi and other language support
-- 🧩 Cognitive-accessibility features
+We would rather be clear than overclaim.
+
+- 🧪 The model learned from **synthetic, rule-made data**, so it shows the idea, not real-student accuracy yet. The live site uses the scikit-learn fallback; TensorFlow runs locally.
+- 🎧 NVDA / JAWS testing and a formal accessibility audit are still to do. Automated scans and keyboard tests pass, but they do not replace real screen-reader testing.
+- 🎙️ Voice commands and read-aloud work in Chrome and Edge with internet, and were tested with a mocked speech service.
+- 🤖 The tutor uses pre-written answers, not a live AI.
+- 🔑 The resume code is the only login, so keep it private.
+
+---
+
+## 🔮 Coming Next
+
+- 🎬 Real captions and audio description for videos
+- 🇮🇳 Hindi and other languages
+- 🧩 Features for cognitive accessibility
 - 📈 Retrain the model on consented pilot data from a community-service pilot
-- ✅ Full NVDA / JAWS testing and a WCAG audit
-- 🔒 Stronger resume-code protection and a `Secure` session cookie (see `docs/FINAL_AUDIT.md`, section 6)
+- ✅ Full NVDA / JAWS testing and a formal accessibility audit
+- 🔔 Notifications that follow your resume code across devices
+- 🔒 A stronger resume-code protection and a `Secure` session cookie
 - ⬆️ Upgrade to React Router 7 and move off `react-scripts`
 
 ---
