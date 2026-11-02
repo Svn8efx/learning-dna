@@ -1,7 +1,8 @@
 """Resume codes: save progress without a password and continue on another device."""
 import ipaddress
+import os
 
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, abort, jsonify, request, session
 
 from learning_dna import config
 
@@ -32,6 +33,24 @@ def _client_key() -> str:
         return str(ipaddress.ip_address(candidate))
     except ValueError:
         return request.remote_addr or "unknown"
+
+
+@bp.route("/api/_forwarded")
+def api_forwarded_debug():
+    """Temporary helper for setting TRUSTED_PROXY_HOPS. Switched off (404) unless DEBUG_FORWARDED=1 is set.
+
+    It only repeats back what the caller's own request looked like to the server, so nothing about anyone else is shown.
+    Turn it off again once TRUSTED_PROXY_HOPS is set.
+    """
+    if os.environ.get("DEBUG_FORWARDED") != "1":
+        abort(404)
+    return jsonify({
+        "ok": True,
+        "x_forwarded_for": request.headers.get("X-Forwarded-For", ""),
+        "remote_addr": request.remote_addr,
+        "trusted_proxy_hops": config.TRUSTED_PROXY_HOPS,
+        "key_used_for_rate_limit": _client_key(),
+    })
 
 
 @bp.route("/api/account/code")

@@ -408,3 +408,13 @@ def test_notifications_have_stable_ids_and_a_page_to_open(client):
     client.post("/api/start", json={"syllabus_text": "python, classification"})  # a different plan is a new notification
     changed = next(n for n in client.get("/api/notifications").get_json()["notifications"] if n["title"] == "Plan ready")
     assert changed["id"] != plan["id"]
+
+
+def test_forwarded_header_helper_is_off_unless_switched_on(client, monkeypatch):
+    monkeypatch.delenv("DEBUG_FORWARDED", raising=False)
+    assert client.get("/api/_forwarded").status_code == 404
+    monkeypatch.setenv("DEBUG_FORWARDED", "1")
+    body = client.get("/api/_forwarded", headers={"X-Forwarded-For": "6.6.6.6, 198.51.100.4"}).get_json()
+    assert body["x_forwarded_for"] == "6.6.6.6, 198.51.100.4"
+    assert body["key_used_for_rate_limit"] == "6.6.6.6"          # the default still trusts the first address
+    assert set(body) == {"ok", "x_forwarded_for", "remote_addr", "trusted_proxy_hops", "key_used_for_rate_limit"}

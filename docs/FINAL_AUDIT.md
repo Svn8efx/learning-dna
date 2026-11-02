@@ -125,7 +125,7 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 
 | Check | Result |
 |---|---|
-| Backend `pytest` (in-memory and `mongomock`) | **151 passed** |
+| Backend `pytest` (in-memory and `mongomock`) | **153 passed** |
 | The new backend tests against the original code | 90 failed (so they detect the bugs) |
 | Frontend `npm test` | **43 passed** (3 suites) |
 | Frontend production build, `CI=true` | Compiled successfully, no warnings (this also runs ESLint) |
@@ -162,6 +162,8 @@ A real microphone, the real browser speech service (Chrome's service needs inter
 3. **Resume-code rate limit: partly fixed, one check left for you.**
    - *What changed:* junk in `X-Forwarded-For` is ignored, quiet visitors are forgotten, and the new `TRUSTED_PROXY_HOPS` setting lets the limiter ignore addresses the visitor wrote. The default (`0`) behaves as before.
    - *Why I did not simply turn it on:* Render's documentation and staff say the first address is the real client, but a Render user's own test found that Render only appends to what the client sends. Vercel (which sits in front of your API) is documented to overwrite the header, but I cannot see the real chain from here, and a wrong number would put every visitor into one shared bucket. So the right number has to be confirmed on the live site.
+   - *Live result (2 Nov):* on the public site, 13 wrong codes with 13 different fake `X-Forwarded-For` values all returned 404 (the limit never triggered), while plain wrong codes were limited and answered with the app's own "Too many tries" message. So the per-address limit **can be bypassed** on the live site until `TRUSTED_PROXY_HOPS` is set. The server-wide cap of 60 wrong codes a minute still applies.
+   - *How to set it safely:* temporarily set `DEBUG_FORWARDED=1` on Render, open `/api/_forwarded` from the live site with a fake header (see the README), read the header chain, set `TRUSTED_PROXY_HOPS` from it, then remove `DEBUG_FORWARDED`.
    - *One-minute check (browser console on the live site, on any page):* run the loop below. If you get `404` ten times and then `429`, rotating fake addresses did **not** help, so the public path through Vercel is protected. If you never get `429`, tell me the output and we will set `TRUSTED_PROXY_HOPS`.
      `for (let i = 0; i < 13; i++) { const r = await fetch('/api/account/resume', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Forwarded-For': '10.1.1.' + i}, body: JSON.stringify({code: 'maple-river-tiger-42'})}); console.log(i, r.status); }`
    - *Still true:* the server-wide cap (60 wrong codes a minute) lets anyone block *everyone's* resume for a minute, and honest users on shared school Wi-Fi share one address and can be locked out after 10 wrong tries. Someone who calls the Render address directly (not through Vercel) may still be able to fake the header. The limiter lives in each server process, so several workers multiply the limits.

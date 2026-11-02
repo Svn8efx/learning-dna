@@ -179,6 +179,7 @@ python -m learning_dna.ml.train_need_model
 | `STORE_BACKEND` | `auto`, `mongo` or `memory` |
 | `OPENAI_API_KEY` | *Optional.* Only used for typed tutor questions that match nothing (`OPENAI_MODEL` can change the model) |
 | `YOUTUBE_API_KEY` | *Optional.* Live video search instead of the built-in catalog |
+| `DEBUG_FORWARDED` | *Temporary.* Set to `1` only while finding the right `TRUSTED_PROXY_HOPS`; it turns on `/api/_forwarded`, which shows a caller what the server saw of their own request. Remove it afterwards. |
 | `TRUSTED_PROXY_HOPS` | *Optional, default `0`.* How many proxies in front of the API add to `X-Forwarded-For` and can be trusted. Used only to count wrong resume codes per visitor. Leave at `0` until you have checked it on the live site (see `docs/FINAL_AUDIT.md`, section 6); a wrong number puts every visitor in one shared bucket. |
 
 > 🔐 Never commit `.env` files or connection strings.
@@ -198,7 +199,7 @@ Latest results (see `docs/FINAL_AUDIT.md` for exactly what each one proves):
 
 | Check | Result |
 |---|---|
-| Backend tests (in-memory and an emulated MongoDB) | 151 passed |
+| Backend tests (in-memory and an emulated MongoDB) | 153 passed |
 | Frontend tests | 43 passed |
 | Production build in strict CI mode | no warnings |
 | axe-core accessibility scan, 13 pages, light / dark / high contrast, 320 / 390 / 1280 px | 0 violations |
